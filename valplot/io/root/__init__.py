@@ -5,6 +5,7 @@ from .histograms import (
     hist1d_from_uproot,
     hist2d_from_tree,
     hist2d_from_uproot,
+    profile_from_tree,
     read_hist1d,
     read_hist2d,
 )
@@ -16,4 +17,5 @@ __all__ = [
     "read_hist2d",
     "hist1d_from_tree",
     "hist2d_from_tree",
+    "profile_from_tree",
 ]

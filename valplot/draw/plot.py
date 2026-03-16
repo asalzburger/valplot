@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import replace
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -29,6 +30,181 @@ def plot(
     raise ValueError(f"Unsupported backend={backend!r}. Expected 'matplotlib' or 'plotly'.")
 
 
+def plot_ratio(
+    histograms: Sequence[hist1d | profile],
+    decorations: Sequence[Decoration] | None = None,
+    *,
+    backend: str = "matplotlib",
+):
+    """Overlay 1D distributions and draw ratios to the first item."""
+    if len(histograms) == 0:
+        raise ValueError("histograms must contain at least one item")
+
+    for histogram in histograms:
+        if not isinstance(histogram, (hist1d, profile)):
+            raise TypeError("plot_ratio supports only hist1d and profile objects")
+
+    first_type = type(histograms[0])
+    if any(type(hist) is not first_type for hist in histograms):
+        raise TypeError("All histograms passed to plot_ratio must have the same type")
+
+    if decorations is None:
+        decos = [Decoration() for _ in histograms]
+    else:
+        if len(decorations) != len(histograms):
+            raise ValueError("decorations length must match histograms length")
+        decos = list(decorations)
+
+    if backend != "matplotlib":
+        raise ValueError("plot_ratio currently supports backend='matplotlib' only.")
+
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:  # pragma: no cover
+        raise ImportError("matplotlib is required for backend='matplotlib'.") from exc
+
+    fig, axes = plt.subplots(
+        2,
+        1,
+        sharex=True,
+        gridspec_kw={"height_ratios": [3, 1]},
+    )
+    if hasattr(fig, "subplots_adjust"):
+        fig.subplots_adjust(hspace=0.05)
+    top_ax, ratio_ax = axes
+
+    for histogram, deco in zip(histograms, decos):
+        _draw_matplotlib_histogram(top_ax, histogram, deco, figure=fig)
+    _apply_matplotlib_decoration(top_ax, replace(decos[0], x_label=None))
+
+    denominator = histograms[0]
+    for histogram, deco in zip(histograms[1:], decos[1:]):
+        ratio_values, ratio_errors, edges = _ratio_to_denominator(histogram, denominator)
+        centers = 0.5 * (edges[:-1] + edges[1:])
+        ratio_ax.errorbar(
+            centers,
+            ratio_values,
+            yerr=ratio_errors,
+            label=deco.label or histogram.name,
+            color=deco.color,
+            linestyle=deco.line_style,
+            linewidth=deco.line_width,
+            marker=deco.marker or "o",
+            markersize=deco.marker_size,
+            alpha=deco.alpha,
+        )
+
+    ratio_ax.axhline(1.0, color="black", linestyle="--", linewidth=1.0, alpha=0.8)
+    ratio_ax.set_ylabel("Ratio")
+    if decos[0].x_label is not None:
+        ratio_ax.set_xlabel(decos[0].x_label, fontsize=decos[0].label_size)
+    if decos[0].tick_size is not None:
+        ratio_ax.tick_params(axis="both", labelsize=decos[0].tick_size)
+    if decos[0].show_grid:
+        ratio_ax.grid(True, alpha=0.3)
+    if decos[0].show_legend:
+        handles, labels = ratio_ax.get_legend_handles_labels()
+        if labels:
+            ratio_ax.legend()
+
+    return fig, (top_ax, ratio_ax)
+
+
+def _draw_matplotlib_histogram(axis: Any, histogram: hist1d | hist2d | profile | efficiency, decoration: Decoration, *, figure: Any):
+    if isinstance(histogram, hist1d):
+        axis.stairs(
+            histogram.counts,
+            histogram.edges,
+            label=decoration.label or histogram.name,
+            color=decoration.color,
+            alpha=decoration.alpha,
+            linestyle=decoration.line_style,
+            linewidth=decoration.line_width,
+            fill=decoration.fill,
+        )
+        return
+
+    if isinstance(histogram, hist2d):
+        mesh = axis.pcolormesh(
+            histogram.x_edges,
+            histogram.y_edges,
+            histogram.counts.T,
+            cmap=decoration.cmap,
+            shading="auto",
+            alpha=decoration.alpha,
+        )
+        if figure is not None and hasattr(figure, "colorbar"):
+            figure.colorbar(mesh, ax=axis)
+        return
+
+    if isinstance(histogram, profile):
+        centers = 0.5 * (histogram.edges[:-1] + histogram.edges[1:])
+        axis.errorbar(
+            centers,
+            histogram.means,
+            yerr=histogram.errors,
+            label=decoration.label or histogram.name,
+            color=decoration.color,
+            linestyle=decoration.line_style,
+            linewidth=decoration.line_width,
+            marker=decoration.marker,
+            markersize=decoration.marker_size,
+            alpha=decoration.alpha,
+        )
+        return
+
+    if isinstance(histogram, efficiency):
+        centers = 0.5 * (histogram.edges[:-1] + histogram.edges[1:])
+        axis.errorbar(
+            centers,
+            histogram.values,
+            yerr=histogram.errors,
+            label=decoration.label or histogram.name,
+            color=decoration.color,
+            linestyle=decoration.line_style,
+            linewidth=decoration.line_width,
+            marker=decoration.marker,
+            markersize=decoration.marker_size,
+            alpha=decoration.alpha,
+        )
+        axis.set_ylim(0.0, 1.05)
+        return
+
+    raise TypeError(f"Unsupported histogram type: {type(histogram)!r}")
+
+
+def _ratio_to_denominator(numerator: hist1d | profile, denominator: hist1d | profile) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    if isinstance(numerator, hist1d):
+        num_values = numerator.counts
+        num_errors = numerator.errors
+        edges = numerator.edges
+    else:
+        num_values = numerator.means
+        num_errors = numerator.errors
+        edges = numerator.edges
+
+    if isinstance(denominator, hist1d):
+        den_values = denominator.counts
+        den_errors = denominator.errors
+        den_edges = denominator.edges
+    else:
+        den_values = denominator.means
+        den_errors = denominator.errors
+        den_edges = denominator.edges
+
+    if edges.shape != den_edges.shape or not np.allclose(edges, den_edges):
+        raise ValueError("All histograms in plot_ratio must use compatible bin edges.")
+
+    ratio_values = np.divide(num_values, den_values, out=np.full_like(num_values, np.nan, dtype=float), where=den_values != 0.0)
+    relative_num = np.divide(num_errors, num_values, out=np.zeros_like(num_values, dtype=float), where=num_values != 0.0)
+    relative_den = np.divide(den_errors, den_values, out=np.zeros_like(den_values, dtype=float), where=den_values != 0.0)
+    ratio_errors = np.abs(ratio_values) * np.sqrt(np.square(relative_num) + np.square(relative_den))
+    ratio_errors = np.asarray(ratio_errors, dtype=float)
+    ratio_errors[~np.isfinite(ratio_values)] = 0.0
+
+    return ratio_values, ratio_errors, edges
+
+
 def _plot_matplotlib(
     histogram: hist1d | hist2d | profile | efficiency,
     decoration: Decoration,
@@ -50,60 +226,7 @@ def _plot_matplotlib(
     else:
         fig, ax = plt.subplots()
 
-    if isinstance(histogram, hist1d):
-        ax.stairs(
-            histogram.counts,
-            histogram.edges,
-            label=decoration.label or histogram.name,
-            color=decoration.color,
-            alpha=decoration.alpha,
-            linestyle=decoration.line_style,
-            linewidth=decoration.line_width,
-            fill=decoration.fill,
-        )
-    elif isinstance(histogram, hist2d):
-        mesh = ax.pcolormesh(
-            histogram.x_edges,
-            histogram.y_edges,
-            histogram.counts.T,
-            cmap=decoration.cmap,
-            shading="auto",
-            alpha=decoration.alpha,
-        )
-        if figure is not None and hasattr(figure, "colorbar"):
-            figure.colorbar(mesh, ax=ax)
-    elif isinstance(histogram, profile):
-        centers = 0.5 * (histogram.edges[:-1] + histogram.edges[1:])
-        ax.errorbar(
-            centers,
-            histogram.means,
-            yerr=histogram.errors,
-            label=decoration.label or histogram.name,
-            color=decoration.color,
-            linestyle=decoration.line_style,
-            linewidth=decoration.line_width,
-            marker=decoration.marker,
-            markersize=decoration.marker_size,
-            alpha=decoration.alpha,
-        )
-    elif isinstance(histogram, efficiency):
-        centers = 0.5 * (histogram.edges[:-1] + histogram.edges[1:])
-        ax.errorbar(
-            centers,
-            histogram.values,
-            yerr=histogram.errors,
-            label=decoration.label or histogram.name,
-            color=decoration.color,
-            linestyle=decoration.line_style,
-            linewidth=decoration.line_width,
-            marker=decoration.marker,
-            markersize=decoration.marker_size,
-            alpha=decoration.alpha,
-        )
-        ax.set_ylim(0.0, 1.05)
-    else:  # pragma: no cover
-        raise TypeError(f"Unsupported histogram type: {type(histogram)!r}")
-
+    _draw_matplotlib_histogram(ax, histogram, decoration, figure=figure)
     _apply_matplotlib_decoration(ax, decoration)
     return fig, ax
 
