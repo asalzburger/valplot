@@ -64,3 +64,4 @@ Notes:
 
 - ROOT integration examples: [`root-io.md`](root-io.md)
 - Complete script: [`../examples/demo_root_plot.py`](../examples/demo_root_plot.py)
+- Multi-file CLI script: [`../examples/demo_overlay_from_trees.py`](../examples/demo_overlay_from_trees.py)
