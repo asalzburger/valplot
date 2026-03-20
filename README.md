@@ -9,12 +9,18 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
   - `hist2d`
   - `profile`
   - `efficiency`
+  - `scatter`
+  - `band`
 - Backend-agnostic plotting:
   - `plot(...)` for single objects
   - `plot_ratio(...)` for overlaid 1D/profile plots with a ratio panel
+  - `plot_scatter(...)` for point-wise overlays
+  - `plot_band(...)` for spread / sigma bands
 - ROOT helpers in `valplot.io.root`:
   - read TH1/TH2 objects
-  - fill 1D/2D histograms and profiles from TTree branches
+  - fill 1D/2D histograms, profiles, scatters, and bands from TTree branches
+- Utility scripts:
+  - SVG stamping utility to overlay logos onto generated SVG plots
 
 ## Installation
 
@@ -58,11 +64,10 @@ fig_ratio, _ = plot_ratio(
 )
 ```
 
-## Example script
+## Demos
+### ROOT plotting demo
 
-See `examples/demo_root_plot.py` for a complete demo using `tests/data/tests_input.root`.
-
-It generates:
+`examples/demo_root_plot.py` uses `tests/data/tests_input.root` and generates:
 
 - `examples/output/overlay_hx_hy.png`
 - `examples/output/hxy_heatmap.png`
@@ -76,8 +81,38 @@ Run:
 python examples/demo_root_plot.py
 ```
 
+### Multi-file overlay CLI demo
+
+`examples/demo_overlay_from_trees.py` supports instruction-driven plotting across multiple files/trees.
+
+Examples:
+
+```bash
+python examples/demo_overlay_from_trees.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --trees tree tree \
+  --plots profile:ratio:x:y profile::band:x:y hist1:x scatter:x:y
+```
+
+### Style showcase demo
+
+`examples/demo_style_showcase.py` demonstrates style variants and color schemas for:
+
+- profile with error bars + ratio
+- profile with band + ratio
+- hist1 style overlays
+- hist2 colormap styles
+
+Run:
+
+```bash
+python examples/demo_style_showcase.py
+```
+
 ## Documentation
 
 - [`docs/quickstart.md`](docs/quickstart.md)
 - [`docs/root-io.md`](docs/root-io.md)
 - [`docs/api.md`](docs/api.md)
+- [`docs/demos.md`](docs/demos.md)
+- [`docs/howto.md`](docs/howto.md)
