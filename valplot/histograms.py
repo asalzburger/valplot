@@ -224,3 +224,62 @@ class efficiency:
     @property
     def n_bins(self) -> int:
         return int(self.passed.shape[0])
+
+
+@dataclass(frozen=True)
+class scatter:
+    """Container for point-wise scatter data."""
+
+    x: ArrayLike
+    y: ArrayLike
+    name: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        x = _as_1d_float_array(self.x, "x")
+        y = _as_1d_float_array(self.y, "y")
+        if x.shape != y.shape:
+            raise ValueError("x and y must have the same shape")
+        object.__setattr__(self, "x", x)
+        object.__setattr__(self, "y", y)
+
+
+@dataclass(frozen=True)
+class band:
+    """Container for band-like data with central values and envelopes."""
+
+    edges: ArrayLike
+    values: ArrayLike
+    lower: ArrayLike
+    upper: ArrayLike
+    errors: ArrayLike | None = None
+    name: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        edges = _as_1d_float_array(self.edges, "edges")
+        values = _as_1d_float_array(self.values, "values")
+        lower = _as_1d_float_array(self.lower, "lower")
+        upper = _as_1d_float_array(self.upper, "upper")
+
+        if edges.shape[0] != values.shape[0] + 1:
+            raise ValueError("edges length must be values length + 1")
+        if values.shape != lower.shape or values.shape != upper.shape:
+            raise ValueError("values, lower, and upper must have identical shapes")
+        if np.any(lower > upper):
+            raise ValueError("lower cannot exceed upper")
+
+        if self.errors is None:
+            errors = 0.5 * (upper - lower)
+        else:
+            errors = _as_1d_float_array(self.errors, "errors")
+            if errors.shape != values.shape:
+                raise ValueError("errors shape must match values shape")
+            if np.any(errors < 0):
+                raise ValueError("errors must be non-negative")
+
+        object.__setattr__(self, "edges", edges)
+        object.__setattr__(self, "values", values)
+        object.__setattr__(self, "lower", lower)
+        object.__setattr__(self, "upper", upper)
+        object.__setattr__(self, "errors", errors)

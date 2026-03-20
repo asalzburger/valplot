@@ -3,8 +3,8 @@ import types
 
 import pytest
 
-from valplot.draw import Decoration, plot, plot_ratio
-from valplot.histograms import hist1d, profile
+from valplot.draw import Decoration, plot, plot_band, plot_ratio, plot_scatter
+from valplot.histograms import band, hist1d, profile, scatter
 
 
 class _FakeAxis:
@@ -53,6 +53,15 @@ class _FakeAxis:
 
     def axhline(self, *args, **kwargs):
         self.calls.append(("axhline", args, kwargs))
+
+    def scatter(self, *args, **kwargs):
+        self.calls.append(("scatter", args, kwargs))
+
+    def fill_between(self, *args, **kwargs):
+        self.calls.append(("fill_between", args, kwargs))
+
+    def plot(self, *args, **kwargs):
+        self.calls.append(("plot", args, kwargs))
 
 
 class _FakeFigure:
@@ -219,3 +228,36 @@ def test_plot_ratio_rejects_incompatible_edges(monkeypatch):
 
     with pytest.raises(ValueError):
         plot_ratio([h1, h2], [Decoration(), Decoration()], backend="matplotlib")
+
+
+def test_plot_scatter_matplotlib(monkeypatch):
+    _install_fake_matplotlib(monkeypatch)
+    pts = scatter(x=[0.0, 1.0, 2.0], y=[1.0, 1.5, 2.0], name="pts")
+
+    _, ax = plot_scatter(pts, decoration=Decoration(label="points", marker="x"), backend="matplotlib")
+    assert any(call[0] == "scatter" for call in ax.calls)
+
+
+def test_plot_band_from_profile(monkeypatch):
+    _install_fake_matplotlib(monkeypatch)
+    p = profile(edges=[0.0, 1.0, 2.0], means=[2.0, 4.0], errors=[0.2, 0.3], entries=[10.0, 20.0], name="p")
+
+    _, ax = plot_band([p], [Decoration(label="p", color="tab:blue")], backend="matplotlib")
+    assert any(call[0] == "fill_between" for call in ax.calls)
+    assert any(call[0] == "plot" for call in ax.calls)
+
+
+def test_plot_band_from_band_spread(monkeypatch):
+    _install_fake_matplotlib(monkeypatch)
+    b = band(
+        edges=[0.0, 1.0, 2.0],
+        values=[2.0, 4.0],
+        lower=[1.5, 3.0],
+        upper=[2.5, 5.5],
+        errors=[0.1, 0.2],
+        name="b",
+    )
+
+    _, ax = plot_band([b], [Decoration(label="band", fill_color="tab:green")], spread="spread", backend="matplotlib")
+    fill_calls = [call for call in ax.calls if call[0] == "fill_between"]
+    assert fill_calls

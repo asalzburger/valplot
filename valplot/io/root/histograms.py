@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from ...histograms import hist1d, hist2d, profile
+from ...histograms import band, hist1d, hist2d, profile, scatter
 
 
 def _import_uproot():
@@ -227,5 +227,72 @@ def profile_from_tree(
         means=means,
         errors=errors,
         entries=entries,
+        name=name or f"{y_branch}_vs_{x_branch}",
+    )
+
+
+def scatter_from_tree(
+    file_path: str,
+    tree_path: str,
+    x_branch: str,
+    y_branch: str,
+    name: str | None = None,
+) -> scatter:
+    """Create ``scatter`` points from two TTree/RNtuple branches."""
+    uproot = _import_uproot()
+    with uproot.open(file_path) as root_file:
+        tree = root_file[tree_path]
+        arrays = tree.arrays([x_branch, y_branch], library="np")
+        x_values = np.asarray(arrays[x_branch], dtype=float)
+        y_values = np.asarray(arrays[y_branch], dtype=float)
+
+    return scatter(x=x_values, y=y_values, name=name or f"{y_branch}_vs_{x_branch}")
+
+
+def band_from_tree(
+    file_path: str,
+    tree_path: str,
+    x_branch: str,
+    y_branch: str,
+    bins: int | np.ndarray | list[float],
+    range: tuple[float, float] | None = None,
+    name: str | None = None,
+) -> band:
+    """Create ``band`` from TTree/RNtuple values using per-bin spread and RMS."""
+    uproot = _import_uproot()
+    with uproot.open(file_path) as root_file:
+        tree = root_file[tree_path]
+        arrays = tree.arrays([x_branch, y_branch], library="np")
+        x_values = np.asarray(arrays[x_branch], dtype=float)
+        y_values = np.asarray(arrays[y_branch], dtype=float)
+
+    entries, edges = np.histogram(x_values, bins=bins, range=range)
+    entries = np.asarray(entries, dtype=float)
+    edges = np.asarray(edges, dtype=float)
+    sumy, _ = np.histogram(x_values, bins=edges, weights=y_values)
+    sumy2, _ = np.histogram(x_values, bins=edges, weights=np.square(y_values))
+    means = np.divide(sumy, entries, out=np.zeros_like(sumy, dtype=float), where=entries > 0.0)
+    second_moment = np.divide(sumy2, entries, out=np.zeros_like(sumy2, dtype=float), where=entries > 0.0)
+    errors = np.sqrt(np.clip(second_moment - np.square(means), a_min=0.0, a_max=None))
+
+    bin_ids = np.digitize(x_values, edges) - 1
+    n_bins = entries.shape[0]
+    lower = np.full(n_bins, np.nan, dtype=float)
+    upper = np.full(n_bins, np.nan, dtype=float)
+    for idx in np.arange(n_bins):
+        mask = bin_ids == idx
+        if np.any(mask):
+            lower[idx] = float(np.min(y_values[mask]))
+            upper[idx] = float(np.max(y_values[mask]))
+        else:
+            lower[idx] = means[idx]
+            upper[idx] = means[idx]
+
+    return band(
+        edges=edges,
+        values=means,
+        lower=lower,
+        upper=upper,
+        errors=errors,
         name=name or f"{y_branch}_vs_{x_branch}",
     )

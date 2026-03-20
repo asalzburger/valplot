@@ -7,12 +7,12 @@ from typing import Any, Sequence
 
 import numpy as np
 
-from ..histograms import efficiency, hist1d, hist2d, profile
+from ..histograms import band, efficiency, hist1d, hist2d, profile, scatter
 from .decorations import Decoration
 
 
 def plot(
-    histogram: hist1d | hist2d | profile | efficiency,
+    histogram: hist1d | hist2d | profile | efficiency | scatter | band,
     decoration: Decoration | None = None,
     *,
     backend: str = "matplotlib",
@@ -28,6 +28,85 @@ def plot(
     if backend == "plotly":
         return _plot_plotly(histogram, deco, figure=figure, row=row, col=col)
     raise ValueError(f"Unsupported backend={backend!r}. Expected 'matplotlib' or 'plotly'.")
+
+
+def plot_scatter(
+    points: scatter,
+    decoration: Decoration | None = None,
+    *,
+    backend: str = "matplotlib",
+    figure: Any | None = None,
+    axis: Any | None = None,
+):
+    """Plot scatter points."""
+    return plot(points, decoration=decoration, backend=backend, figure=figure, axis=axis)
+
+
+def plot_band(
+    histograms: Sequence[hist1d | profile | band],
+    decorations: Sequence[Decoration] | None = None,
+    *,
+    spread: str | None = None,
+    backend: str = "matplotlib",
+    figure: Any | None = None,
+    axis: Any | None = None,
+):
+    """Overlay band plots from hist1d/profile/band objects."""
+    if len(histograms) == 0:
+        raise ValueError("histograms must contain at least one item")
+    for histogram in histograms:
+        if not isinstance(histogram, (hist1d, profile, band)):
+            raise TypeError("plot_band supports only hist1d, profile, or band objects")
+
+    if decorations is None:
+        decos = [Decoration() for _ in histograms]
+    else:
+        if len(decorations) != len(histograms):
+            raise ValueError("decorations length must match histograms length")
+        decos = list(decorations)
+
+    if backend != "matplotlib":
+        raise ValueError("plot_band currently supports backend='matplotlib' only.")
+
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:  # pragma: no cover
+        raise ImportError("matplotlib is required for backend='matplotlib'.") from exc
+
+    if axis is not None:
+        ax = axis
+        fig = figure if figure is not None else getattr(axis, "figure", None)
+    elif figure is not None:
+        fig = figure
+        ax = figure.gca()
+    else:
+        fig, ax = plt.subplots()
+
+    for histogram, deco in zip(histograms, decos):
+        edges, centers, lower, upper, values = _band_arrays_from_histogram(histogram, spread=spread)
+        _ = edges
+        band_color = deco.fill_color or deco.color
+        ax.fill_between(
+            centers,
+            lower,
+            upper,
+            alpha=deco.band_alpha if deco.band_alpha is not None else 0.5,
+            color=band_color,
+        )
+        ax.plot(
+            centers,
+            values,
+            label=deco.label or histogram.name,
+            color=deco.color,
+            alpha=deco.alpha,
+            linestyle=deco.line_style,
+            linewidth=deco.line_width,
+            marker=deco.marker,
+            markersize=deco.marker_size,
+        )
+
+    _apply_matplotlib_decoration(ax, decos[0])
+    return fig, ax
 
 
 def plot_ratio(
@@ -110,7 +189,67 @@ def plot_ratio(
     return fig, (top_ax, ratio_ax)
 
 
-def _draw_matplotlib_histogram(axis: Any, histogram: hist1d | hist2d | profile | efficiency, decoration: Decoration, *, figure: Any):
+def _parse_sigma(spread: str) -> float:
+    if not spread.endswith("sigma"):
+        raise ValueError(f"Unsupported spread mode '{spread}'. Use 'spread' or '<N>sigma'.")
+    factor = spread[: -len("sigma")].strip()
+    if factor == "":
+        raise ValueError(f"Unsupported spread mode '{spread}'.")
+    sigma = float(factor)
+    if sigma <= 0.0:
+        raise ValueError("Sigma factor must be positive.")
+    return sigma
+
+
+def _band_arrays_from_histogram(
+    histogram: hist1d | profile | band,
+    *,
+    spread: str | None,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    if isinstance(histogram, hist1d):
+        edges = histogram.edges
+        values = histogram.counts
+        errors = histogram.errors
+        mode = "1sigma" if spread is None else spread
+        if mode == "spread":
+            raise ValueError("spread mode is only available for band objects.")
+        sigma = _parse_sigma(mode)
+        lower = values - sigma * errors
+        upper = values + sigma * errors
+    elif isinstance(histogram, profile):
+        edges = histogram.edges
+        values = histogram.means
+        errors = histogram.errors
+        mode = "1sigma" if spread is None else spread
+        if mode == "spread":
+            raise ValueError("spread mode is only available for band objects.")
+        sigma = _parse_sigma(mode)
+        lower = values - sigma * errors
+        upper = values + sigma * errors
+    else:
+        edges = histogram.edges
+        values = histogram.values
+        errors = histogram.errors
+        mode = "spread" if spread is None else spread
+        if mode == "spread":
+            lower = histogram.lower
+            upper = histogram.upper
+        else:
+            sigma = _parse_sigma(mode)
+            lower = values - sigma * errors
+            upper = values + sigma * errors
+
+    centers = 0.5 * (edges[:-1] + edges[1:])
+    return edges, centers, lower, upper, values
+
+
+def _draw_matplotlib_histogram(
+    axis: Any,
+    histogram: hist1d | hist2d | profile | efficiency | scatter | band,
+    decoration: Decoration,
+    *,
+    figure: Any,
+):
     if isinstance(histogram, hist1d):
         axis.stairs(
             histogram.counts,
@@ -170,6 +309,39 @@ def _draw_matplotlib_histogram(axis: Any, histogram: hist1d | hist2d | profile |
         axis.set_ylim(0.0, 1.05)
         return
 
+    if isinstance(histogram, scatter):
+        axis.scatter(
+            histogram.x,
+            histogram.y,
+            label=decoration.label or histogram.name,
+            color=decoration.color,
+            alpha=decoration.alpha,
+            marker=decoration.marker or "o",
+        )
+        return
+
+    if isinstance(histogram, band):
+        _, centers, lower, upper, values = _band_arrays_from_histogram(histogram, spread=None)
+        axis.fill_between(
+            centers,
+            lower,
+            upper,
+            alpha=decoration.band_alpha if decoration.band_alpha is not None else 0.5,
+            color=decoration.fill_color or decoration.color,
+        )
+        axis.plot(
+            centers,
+            values,
+            label=decoration.label or histogram.name,
+            color=decoration.color,
+            alpha=decoration.alpha,
+            linestyle=decoration.line_style,
+            linewidth=decoration.line_width,
+            marker=decoration.marker,
+            markersize=decoration.marker_size,
+        )
+        return
+
     raise TypeError(f"Unsupported histogram type: {type(histogram)!r}")
 
 
@@ -206,7 +378,7 @@ def _ratio_to_denominator(numerator: hist1d | profile, denominator: hist1d | pro
 
 
 def _plot_matplotlib(
-    histogram: hist1d | hist2d | profile | efficiency,
+    histogram: hist1d | hist2d | profile | efficiency | scatter | band,
     decoration: Decoration,
     *,
     figure: Any | None,
@@ -249,7 +421,7 @@ def _apply_matplotlib_decoration(axis: Any, decoration: Decoration) -> None:
 
 
 def _plot_plotly(
-    histogram: hist1d | hist2d | profile | efficiency,
+    histogram: hist1d | hist2d | profile | efficiency | scatter | band,
     decoration: Decoration,
     *,
     figure: Any | None,
@@ -312,6 +484,18 @@ def _plot_plotly(
         )
         _add_plotly_trace(fig, trace, row=row, col=col)
         _update_plotly_layout(fig, yaxis_range=[0.0, 1.05])
+    elif isinstance(histogram, scatter):
+        trace = go.Scatter(
+            x=histogram.x,
+            y=histogram.y,
+            mode="markers",
+            name=decoration.label or histogram.name,
+            marker={"size": decoration.marker_size, "color": decoration.color},
+            opacity=decoration.alpha,
+        )
+        _add_plotly_trace(fig, trace, row=row, col=col)
+    elif isinstance(histogram, band):
+        raise ValueError("plotly backend does not yet support band objects; use backend='matplotlib'.")
     else:  # pragma: no cover
         raise TypeError(f"Unsupported histogram type: {type(histogram)!r}")
 

@@ -28,6 +28,7 @@ class Decoration:
     fill: bool = False
     fill_color: str | None = None
     fill_alpha: float | None = 0.25
+    band_alpha: float | None = 0.5
 
     font_family: str | None = None
     font_size: float | None = None
