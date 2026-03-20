@@ -4,12 +4,14 @@ from pathlib import Path
 import pytest
 
 from valplot.io.root.histograms import (
+    band_from_tree,
     hist1d_from_tree,
     hist1d_from_uproot,
     hist2d_from_tree,
     hist2d_from_uproot,
     profile_from_tree,
     read_hist1d,
+    scatter_from_tree,
 )
 from valplot.histograms import efficiency, profile
 
@@ -194,6 +196,48 @@ def test_profile_from_tree_with_weights(monkeypatch):
     np.testing.assert_allclose(p.entries, [3.0, 7.0])
 
 
+def test_scatter_from_tree(monkeypatch):
+    arrays = {
+        "x": np.array([0.1, 0.2, 1.2, 1.9], dtype=float),
+        "y": np.array([1.0, 3.0, 2.0, 6.0], dtype=float),
+    }
+    fake_tree = _FakeTree(arrays)
+    fake_file = _FakeRootFile({"events": fake_tree})
+
+    class _FakeUproot:
+        @staticmethod
+        def open(_):
+            return fake_file
+
+    monkeypatch.setattr("valplot.io.root.histograms._import_uproot", lambda: _FakeUproot)
+
+    s = scatter_from_tree("input.root", "events", "x", "y")
+    np.testing.assert_allclose(s.x, arrays["x"])
+    np.testing.assert_allclose(s.y, arrays["y"])
+
+
+def test_band_from_tree(monkeypatch):
+    arrays = {
+        "x": np.array([0.1, 0.2, 1.2, 1.9], dtype=float),
+        "y": np.array([1.0, 3.0, 2.0, 6.0], dtype=float),
+    }
+    fake_tree = _FakeTree(arrays)
+    fake_file = _FakeRootFile({"events": fake_tree})
+
+    class _FakeUproot:
+        @staticmethod
+        def open(_):
+            return fake_file
+
+    monkeypatch.setattr("valplot.io.root.histograms._import_uproot", lambda: _FakeUproot)
+
+    b = band_from_tree("input.root", "events", "x", "y", bins=2, range=(0.0, 2.0))
+    np.testing.assert_allclose(b.edges, [0.0, 1.0, 2.0])
+    np.testing.assert_allclose(b.values, [2.0, 4.0])
+    np.testing.assert_allclose(b.lower, [1.0, 2.0])
+    np.testing.assert_allclose(b.upper, [3.0, 6.0])
+
+
 def test_real_root_file_conversions():
     uproot = pytest.importorskip("uproot")
     assert TESTS_INPUT_ROOT.exists()
@@ -256,3 +300,16 @@ def test_profile_from_tree_real_root_file():
     )
     assert p.n_bins == 50
     assert p.name == "profX_from_tree"
+
+
+def test_scatter_and_band_from_tree_real_root_file():
+    pytest.importorskip("uproot")
+    assert TESTS_INPUT_ROOT.exists()
+
+    s = scatter_from_tree(str(TESTS_INPUT_ROOT), "tree", "x", "y", name="scatter_xy")
+    b = band_from_tree(str(TESTS_INPUT_ROOT), "tree", "x", "y", bins=50, range=(-5.0, 5.0), name="band_xy")
+
+    assert s.x.shape == s.y.shape
+    assert s.name == "scatter_xy"
+    assert b.values.shape[0] == 50
+    assert b.name == "band_xy"
