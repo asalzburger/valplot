@@ -11,10 +11,14 @@ From `valplot`:
   - `hist2d`
   - `profile`
   - `efficiency`
+  - `scatter`
+  - `band`
 - drawing:
   - `Decoration`
   - `plot`
   - `plot_ratio`
+  - `plot_scatter`
+  - `plot_band`
 
 ## `Decoration`
 
@@ -23,7 +27,7 @@ From `valplot`:
 - labels: `title`, `x_label`, `y_label`, `label`
 - line style: `color`, `line_style`, `line_width`, `alpha`
 - marker style: `marker`, `marker_size`
-- extras: `show_grid`, `show_legend`, `cmap`
+- extras: `show_grid`, `show_legend`, `cmap`, `band_alpha`
 
 ## `plot`
 
@@ -40,7 +44,7 @@ plot(
 )
 ```
 
-- Supports: `hist1d`, `hist2d`, `profile`, `efficiency`.
+- Supports: `hist1d`, `hist2d`, `profile`, `efficiency`, `scatter`, `band`.
 - Backends:
   - `matplotlib`
   - `plotly`
@@ -59,4 +63,42 @@ plot_ratio(
 - Supports: `hist1d` and `profile`.
 - Uses the first object as denominator.
 - Ratio panel excludes the first object (no self-ratio line).
+- Current backend support: `matplotlib` only.
+
+## `plot_scatter`
+
+```python
+plot_scatter(
+    points,
+    decoration=None,
+    *,
+    backend="matplotlib",
+    figure=None,
+    axis=None,
+)
+```
+
+- Supports: `scatter`.
+- Backends:
+  - `matplotlib`
+  - `plotly`
+
+## `plot_band`
+
+```python
+plot_band(
+    histograms,
+    decorations=None,
+    *,
+    spread=None,
+    backend="matplotlib",
+    figure=None,
+    axis=None,
+)
+```
+
+- Supports: `hist1d`, `profile`, `band`.
+- `spread` options:
+  - for `hist1d`/`profile`: sigma mode (`"1sigma"`, `"2sigma"`, ...)
+  - for `band`: `"spread"` (default) or sigma mode
 - Current backend support: `matplotlib` only.
