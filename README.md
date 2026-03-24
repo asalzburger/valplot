@@ -101,8 +101,8 @@ python examples/demo_overlay_from_trees.py \
 
 - profile with error bars + ratio
 - profile with band + ratio
-- hist1 style overlays
-- hist2 colormap styles
+- hist1d style overlays
+- hist2d colormap styles
 
 Run:
 
