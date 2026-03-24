@@ -154,11 +154,11 @@ def _save_profile_ratio_with_bands(
     fig.savefig(out_dir / f"style_{schema['name']}_profile_ratio_band.png", dpi=140, bbox_inches="tight")
 
 
-def _save_hist1_styles(hx: plotval.hist1d, hy: plotval.hist1d, schema: dict[str, str], out_dir: Path) -> None:
+def _save_hist1d_styles(hx: plotval.hist1d, hy: plotval.hist1d, schema: dict[str, str], out_dir: Path) -> None:
     fig, _ = plotval.plot(
         hx,
         decoration=plotval.Decoration(
-            title=f"hist1 styles ({schema['name']})",
+            title=f"hist1d styles ({schema['name']})",
             x_label="x",
             y_label="Entries",
             label="hx",
@@ -183,14 +183,14 @@ def _save_hist1_styles(hx: plotval.hist1d, hy: plotval.hist1d, schema: dict[str,
         backend="matplotlib",
         axis=fig.gca(),
     )
-    fig.savefig(out_dir / f"style_{schema['name']}_hist1_overlay.png", dpi=140, bbox_inches="tight")
+    fig.savefig(out_dir / f"style_{schema['name']}_hist1d_overlay.png", dpi=140, bbox_inches="tight")
 
 
-def _save_hist2_styles(hxy: plotval.hist2d, schema: dict[str, str], out_dir: Path) -> None:
+def _save_hist2d_styles(hxy: plotval.hist2d, schema: dict[str, str], out_dir: Path) -> None:
     fig, _ = plotval.plot(
         hxy,
         decoration=plotval.Decoration(
-            title=f"hist2 styles ({schema['name']})",
+            title=f"hist2d styles ({schema['name']})",
             x_label="x",
             y_label="y",
             cmap=schema["cmap"],
@@ -198,7 +198,7 @@ def _save_hist2_styles(hxy: plotval.hist2d, schema: dict[str, str], out_dir: Pat
         ),
         backend="matplotlib",
     )
-    fig.savefig(out_dir / f"style_{schema['name']}_hist2_heatmap.png", dpi=140, bbox_inches="tight")
+    fig.savefig(out_dir / f"style_{schema['name']}_hist2d_heatmap.png", dpi=140, bbox_inches="tight")
 
 
 def main() -> None:
@@ -216,8 +216,8 @@ def main() -> None:
     for schema in SCHEMAS:
         _save_profile_ratio_with_errorbars(prof_x, prof_y, schema, out_dir)
         _save_profile_ratio_with_bands(prof_x, prof_y, schema, out_dir)
-        _save_hist1_styles(hx, hy, schema, out_dir)
-        _save_hist2_styles(hxy, schema, out_dir)
+        _save_hist1d_styles(hx, hy, schema, out_dir)
+        _save_hist2d_styles(hxy, schema, out_dir)
 
     print(f"Saved style showcase plots to: {out_dir}")
 
