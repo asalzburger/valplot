@@ -4,7 +4,7 @@ import types
 import pytest
 
 from valplot.draw import Decoration, plot, plot_band, plot_ratio, plot_scatter
-from valplot.histograms import band, hist1d, profile, scatter
+from valplot.histograms import band, hist1d, profile, restricted_profile, scatter
 
 
 class _FakeAxis:
@@ -212,6 +212,52 @@ def test_plot_ratio_profile(monkeypatch):
     assert len(ratio_errorbars) == 1
 
 
+def test_plot_ratio_restricted_profile(monkeypatch):
+    _install_fake_matplotlib(monkeypatch)
+    rp1 = restricted_profile(
+        edges=[0.0, 1.0, 2.0],
+        means=[2.0, 4.0],
+        errors=[0.2, 0.3],
+        entries=[10.0, 20.0],
+        name="rp1",
+    )
+    rp2 = restricted_profile(
+        edges=[0.0, 1.0, 2.0],
+        means=[1.0, 8.0],
+        errors=[0.1, 0.4],
+        entries=[8.0, 22.0],
+        name="rp2",
+    )
+
+    _, (top_ax, ratio_ax) = plot_ratio(
+        [rp1, rp2],
+        [Decoration(label="rp1"), Decoration(label="rp2")],
+        backend="matplotlib",
+    )
+    assert any(call[0] == "errorbar" for call in top_ax.calls)
+    ratio_errorbars = [call for call in ratio_ax.calls if call[0] == "errorbar"]
+    assert len(ratio_errorbars) == 1
+
+
+def test_plot_ratio_mixed_profile_restricted_profile(monkeypatch):
+    _install_fake_matplotlib(monkeypatch)
+    p = profile(edges=[0.0, 1.0, 2.0], means=[2.0, 4.0], errors=[0.2, 0.3], entries=[10.0, 20.0], name="p")
+    rp = restricted_profile(
+        edges=[0.0, 1.0, 2.0],
+        means=[1.0, 8.0],
+        errors=[0.1, 0.4],
+        entries=[8.0, 22.0],
+        name="rp",
+    )
+
+    _, (top_ax, _) = plot_ratio(
+        [p, rp],
+        [Decoration(label="p"), Decoration(label="rp")],
+        backend="matplotlib",
+    )
+    assert any(call[0] == "errorbar" for call in top_ax.calls)
+
+
 def test_plot_ratio_rejects_mixed_types(monkeypatch):
     _install_fake_matplotlib(monkeypatch)
     h = hist1d(edges=[0.0, 1.0, 2.0], counts=[1.0, 2.0], name="h")
@@ -261,3 +307,23 @@ def test_plot_band_from_band_spread(monkeypatch):
     _, ax = plot_band([b], [Decoration(label="band", fill_color="tab:green")], spread="spread", backend="matplotlib")
     fill_calls = [call for call in ax.calls if call[0] == "fill_between"]
     assert fill_calls
+
+
+def test_plot_band_from_restricted_profile(monkeypatch):
+    _install_fake_matplotlib(monkeypatch)
+    rp = restricted_profile(
+        edges=[0.0, 1.0, 2.0],
+        means=[2.0, 4.0],
+        errors=[0.2, 0.3],
+        entries=[10.0, 20.0],
+        name="rp",
+    )
+
+    _, ax = plot_band(
+        [rp],
+        [Decoration(label="rp", color="tab:cyan", fill_color="tab:cyan")],
+        spread="1sigma",
+        backend="matplotlib",
+    )
+    assert any(call[0] == "fill_between" for call in ax.calls)
+    assert any(call[0] == "plot" for call in ax.calls)

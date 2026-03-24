@@ -11,12 +11,14 @@ from valplot.io.root.histograms import (
     hist2d_from_uproot,
     profile_from_tree,
     read_hist1d,
+    restricted_profile_from_tree,
     scatter_from_tree,
 )
-from valplot.histograms import efficiency, profile
+from valplot.histograms import efficiency, profile, restricted_profile
 
 
 TESTS_INPUT_ROOT = Path(__file__).parent / "data" / "tests_input.root"
+TESTS_RESTRICTED_ROOT = Path(__file__).parent / "data" / "tests_restricted.root"
 
 
 class _FakeTH1:
@@ -238,6 +240,58 @@ def test_band_from_tree(monkeypatch):
     np.testing.assert_allclose(b.upper, [3.0, 6.0])
 
 
+def test_restricted_profile_class():
+    rp = restricted_profile(
+        edges=[0.0, 1.0, 2.0],
+        means=[2.0, 4.0],
+        errors=[0.2, 0.3],
+        entries=[10.0, 20.0],
+        name="rp",
+        metadata={"restriction_branch": "z", "restriction_range": (-4.0, 4.0)},
+    )
+    assert rp.n_bins == 2
+    np.testing.assert_allclose(rp.means, [2.0, 4.0])
+    assert rp.metadata["restriction_range"] == (-4.0, 4.0)
+
+
+def test_restricted_profile_from_tree(monkeypatch):
+    # x, y, z. Restrict z in [0.5, 1.5] -> keep indices 0, 2, 3
+    arrays = {
+        "x": np.array([0.1, 0.2, 1.2, 1.9], dtype=float),
+        "y": np.array([1.0, 3.0, 2.0, 6.0], dtype=float),
+        "z": np.array([0.5, 2.0, 1.0, 1.2], dtype=float),
+    }
+    fake_tree = _FakeTree(arrays)
+    fake_file = _FakeRootFile({"events": fake_tree})
+
+    class _FakeUproot:
+        @staticmethod
+        def open(_):
+            return fake_file
+
+    monkeypatch.setattr("valplot.io.root.histograms._import_uproot", lambda: _FakeUproot)
+
+    rp = restricted_profile_from_tree(
+        "input.root",
+        "events",
+        x_branch="x",
+        y_branch="y",
+        restriction_branch="z",
+        restriction_range=(0.5, 1.5),
+        bins=2,
+        range=(0.0, 2.0),
+        name="rp",
+    )
+    np.testing.assert_allclose(rp.edges, [0.0, 1.0, 2.0])
+    # After filter: x=[0.1, 1.2, 1.9], y=[1.0, 2.0, 6.0]
+    # bin 0 [0,1]: x=0.1, y=1.0 -> mean=1, entries=1
+    # bin 1 [1,2]: x=1.2, 1.9, y=2, 6 -> mean=4, entries=2
+    np.testing.assert_allclose(rp.means, [1.0, 4.0])
+    np.testing.assert_allclose(rp.entries, [1.0, 2.0])
+    assert rp.metadata["restriction_branch"] == "z"
+    assert rp.metadata["restriction_range"] == (0.5, 1.5)
+
+
 def test_real_root_file_conversions():
     uproot = pytest.importorskip("uproot")
     assert TESTS_INPUT_ROOT.exists()
@@ -313,3 +367,23 @@ def test_scatter_and_band_from_tree_real_root_file():
     assert s.name == "scatter_xy"
     assert b.values.shape[0] == 50
     assert b.name == "band_xy"
+
+
+def test_restricted_profile_from_tree_real_root_file():
+    pytest.importorskip("uproot")
+    assert TESTS_RESTRICTED_ROOT.exists()
+
+    rp = restricted_profile_from_tree(
+        str(TESTS_RESTRICTED_ROOT),
+        "restricted_profile",
+        x_branch="x",
+        y_branch="v0",
+        restriction_branch="y",
+        restriction_range=(-4.0, 4.0),
+        bins=40,
+        range=(-5.0, 5.0),
+        name="v0_ycut",
+    )
+    assert rp.n_bins == 40
+    assert rp.metadata["restriction_branch"] == "y"
+    assert rp.metadata["restriction_range"] == (-4.0, 4.0)

@@ -7,6 +7,7 @@ This project works with a small set of histogram container classes and plotting 
 - `hist1d`: 1D binned counts with errors
 - `hist2d`: 2D binned counts with errors
 - `profile`: per-bin means with uncertainties
+- `restricted_profile`: profile with a selection on a second variable (same structure as profile)
 - `efficiency`: binomial pass/total representation
 - `scatter`: point-wise x/y values
 - `band`: binned central values with lower/upper envelopes
@@ -38,7 +39,7 @@ fig, ax = plot(
 
 ## Overlay + ratio plotting
 
-Use `plot_ratio` for `hist1d` and `profile` objects.
+Use `plot_ratio` for `hist1d`, `profile`, and `restricted_profile` objects.
 
 ```python
 from valplot import Decoration, hist1d, plot_ratio
@@ -88,4 +89,5 @@ fig_band, _ = plot_band(
 - Complete script: [`../examples/demo_root_plot.py`](../examples/demo_root_plot.py)
 - Multi-file CLI script: [`../examples/demo_overlay_from_trees.py`](../examples/demo_overlay_from_trees.py)
 - Style showcase script: [`../examples/demo_style_showcase.py`](../examples/demo_style_showcase.py)
+- Restricted profile demo: [`../examples/demo_restricted_profile.py`](../examples/demo_restricted_profile.py)
 - Practical recipes: [`howto.md`](howto.md)

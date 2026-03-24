@@ -68,3 +68,22 @@ python examples/demo_style_showcase.py
 ```
 
 Outputs are written to `examples/output/` with `style_*` prefixes.
+
+## `demo_restricted_profile.py`
+
+Purpose:
+
+- unrestricted vs restricted profile ratio comparisons
+- uses `tests/data/tests_restricted.root` with tree `restricted_profile` (branches: x, y, v0, v1)
+
+Run:
+
+```bash
+python examples/demo_restricted_profile.py
+```
+
+Outputs:
+
+- `restricted_profile_ratio_v1_v0_vs_x.png` (unrestricted)
+- `restricted_profile_ratio_v1_v0_vs_y.png` (unrestricted)
+- `restricted_profile_ratio_v1_v0_vs_x_zcut.png` (restricted: y ∈ [-4, 4])

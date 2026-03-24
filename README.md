@@ -8,6 +8,7 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
   - `hist1d`
   - `hist2d`
   - `profile`
+  - `restricted_profile` (profile with selection on a second variable)
   - `efficiency`
   - `scatter`
   - `band`
@@ -18,7 +19,7 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
   - `plot_band(...)` for spread / sigma bands
 - ROOT helpers in `valplot.io.root`:
   - read TH1/TH2 objects
-  - fill 1D/2D histograms, profiles, scatters, and bands from TTree branches
+  - fill 1D/2D histograms, profiles, restricted profiles, scatters, and bands from TTree branches
 - Utility scripts:
   - SVG stamping utility to overlay logos onto generated SVG plots
 
@@ -107,6 +108,19 @@ Run:
 
 ```bash
 python examples/demo_style_showcase.py
+```
+
+### Restricted profile demo
+
+`examples/demo_restricted_profile.py` shows unrestricted and restricted profile ratio comparisons using `tests/data/tests_restricted.root`:
+
+- v1/v0 vs x and vs y (unrestricted)
+- v1/v0 vs x with y ∈ [-4, 4] (restricted)
+
+Run:
+
+```bash
+python examples/demo_restricted_profile.py
 ```
 
 ## Documentation

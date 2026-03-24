@@ -7,6 +7,7 @@ from .histograms import (
     hist2d_from_tree,
     hist2d_from_uproot,
     profile_from_tree,
+    restricted_profile_from_tree,
     scatter_from_tree,
     read_hist1d,
     read_hist2d,
@@ -20,6 +21,7 @@ __all__ = [
     "hist1d_from_tree",
     "hist2d_from_tree",
     "profile_from_tree",
+    "restricted_profile_from_tree",
     "scatter_from_tree",
     "band_from_tree",
 ]
