@@ -9,6 +9,7 @@
 - `hist1d_from_tree(file_path, tree_path, branch, bins, range=None, weight_branch=None, name=None)`
 - `hist2d_from_tree(file_path, tree_path, x_branch, y_branch, bins, range=None, weight_branch=None, name=None)`
 - `profile_from_tree(file_path, tree_path, x_branch, y_branch, bins, range=None, weight_branch=None, name=None)`
+- `restricted_profile_from_tree(file_path, tree_path, x_branch, y_branch, restriction_branch, restriction_range, bins, range=None, weight_branch=None, name=None)`
 - `scatter_from_tree(file_path, tree_path, x_branch, y_branch, name=None)`
 - `band_from_tree(file_path, tree_path, x_branch, y_branch, bins, range=None, name=None)`
 
@@ -96,6 +97,28 @@ weighted_profile = profile_from_tree(
     name="weighted_y_vs_x",
 )
 ```
+
+## Restricted profiles
+
+A restricted profile applies a selection on a second variable before filling the profile. Use `restricted_profile_from_tree` when you want to bin in `x` and average `y`, but only include events where a third variable falls within a given range:
+
+```python
+from valplot.io.root import restricted_profile_from_tree
+
+rp = restricted_profile_from_tree(
+    "tests/data/tests_restricted.root",
+    "restricted_profile",
+    x_branch="x",
+    y_branch="v0",
+    restriction_branch="y",
+    restriction_range=(-4.0, 4.0),
+    bins=40,
+    range=(-5.0, 5.0),
+    name="v0_ycut",
+)
+```
+
+The returned object has the same interface as `profile` and can be used with `plot`, `plot_ratio`, and `plot_band`. Restriction metadata is stored in `rp.metadata`.
 
 ## Notes on band semantics
 

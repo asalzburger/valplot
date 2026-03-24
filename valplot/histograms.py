@@ -173,6 +173,44 @@ class profile:
 
 
 @dataclass(frozen=True)
+class restricted_profile:
+    """Profile with a selection on a second variable (restriction).
+    Same structure as profile; plots identically. Restriction is metadata."""
+
+    edges: ArrayLike
+    means: ArrayLike
+    errors: ArrayLike
+    entries: ArrayLike
+    underflow_entries: float = 0.0
+    overflow_entries: float = 0.0
+    name: str | None = None
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        edges = _as_1d_float_array(self.edges, "edges")
+        means = _as_1d_float_array(self.means, "means")
+        errors = _as_1d_float_array(self.errors, "errors")
+        entries = _as_1d_float_array(self.entries, "entries")
+        if edges.shape[0] != means.shape[0] + 1:
+            raise ValueError("edges length must be means length + 1")
+        if means.shape != errors.shape or means.shape != entries.shape:
+            raise ValueError("means, errors, and entries must have identical shapes")
+        if np.any(entries < 0):
+            raise ValueError("entries must be non-negative")
+        if np.any(errors < 0):
+            raise ValueError("errors must be non-negative")
+
+        object.__setattr__(self, "edges", edges)
+        object.__setattr__(self, "means", means)
+        object.__setattr__(self, "errors", errors)
+        object.__setattr__(self, "entries", entries)
+
+    @property
+    def n_bins(self) -> int:
+        return int(self.means.shape[0])
+
+
+@dataclass(frozen=True)
 class efficiency:
     """Container for binomial efficiency information."""
 

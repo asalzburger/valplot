@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from ...histograms import band, hist1d, hist2d, profile, scatter
+from ...histograms import band, hist1d, hist2d, profile, restricted_profile, scatter
 
 
 def _import_uproot():
@@ -295,4 +295,69 @@ def band_from_tree(
         upper=upper,
         errors=errors,
         name=name or f"{y_branch}_vs_{x_branch}",
+    )
+
+
+def restricted_profile_from_tree(
+    file_path: str,
+    tree_path: str,
+    x_branch: str,
+    y_branch: str,
+    restriction_branch: str,
+    restriction_range: tuple[float, float],
+    bins: int | np.ndarray | list[float],
+    range: tuple[float, float] | None = None,
+    weight_branch: str | None = None,
+    name: str | None = None,
+) -> restricted_profile:
+    """Create ``restricted_profile`` from TTree with selection on a second variable."""
+    uproot = _import_uproot()
+    with uproot.open(file_path) as root_file:
+        tree = root_file[tree_path]
+        requested = [x_branch, y_branch, restriction_branch]
+        if weight_branch is not None:
+            requested.append(weight_branch)
+        arrays = tree.arrays(requested, library="np")
+        x_values = np.asarray(arrays[x_branch], dtype=float)
+        y_values = np.asarray(arrays[y_branch], dtype=float)
+        rest_values = np.asarray(arrays[restriction_branch], dtype=float)
+        weights = None if weight_branch is None else np.asarray(arrays[weight_branch], dtype=float)
+
+    lo, hi = restriction_range
+    mask = (rest_values >= lo) & (rest_values <= hi)
+    x_values = x_values[mask]
+    y_values = y_values[mask]
+    if weights is not None:
+        weights = weights[mask]
+
+    if weights is None:
+        sumw, edges = np.histogram(x_values, bins=bins, range=range)
+        sumwy, _ = np.histogram(x_values, bins=edges, weights=y_values)
+        sumwy2, _ = np.histogram(x_values, bins=edges, weights=np.square(y_values))
+        sumw = np.asarray(sumw, dtype=float)
+        entries = sumw
+        neff = entries
+    else:
+        sumw, edges = np.histogram(x_values, bins=bins, range=range, weights=weights)
+        sumwy, _ = np.histogram(x_values, bins=edges, weights=weights * y_values)
+        sumwy2, _ = np.histogram(x_values, bins=edges, weights=weights * np.square(y_values))
+        sumw2, _ = np.histogram(x_values, bins=edges, weights=np.square(weights))
+        sumw = np.asarray(sumw, dtype=float)
+        sumw2 = np.asarray(sumw2, dtype=float)
+        entries = sumw
+        neff = np.divide(np.square(sumw), sumw2, out=np.zeros_like(sumw), where=sumw2 > 0.0)
+
+    edges = np.asarray(edges, dtype=float)
+    means = np.divide(sumwy, sumw, out=np.zeros_like(sumwy, dtype=float), where=sumw > 0.0)
+    second_moment = np.divide(sumwy2, sumw, out=np.zeros_like(sumwy2, dtype=float), where=sumw > 0.0)
+    variances = np.clip(second_moment - np.square(means), a_min=0.0, a_max=None)
+    errors = np.sqrt(np.divide(variances, neff, out=np.zeros_like(variances), where=neff > 0.0))
+
+    return restricted_profile(
+        edges=edges,
+        means=means,
+        errors=errors,
+        entries=entries,
+        name=name or f"{y_branch}_vs_{x_branch}",
+        metadata={"restriction_branch": restriction_branch, "restriction_range": restriction_range},
     )

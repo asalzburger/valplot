@@ -60,6 +60,36 @@ fig, ax = plot_scatter(s1, Decoration(title="Scatter overlay", x_label="x", y_la
 plot_scatter(s2, Decoration(label="B", marker="x", color="tab:red"), axis=ax)
 ```
 
+## Profile ratio with a restricted selection
+
+Use `restricted_profile_from_tree` to profile one variable vs another while keeping only events where a third variable lies in a given range:
+
+```python
+from valplot.io.root import profile_from_tree, restricted_profile_from_tree
+from valplot import Decoration, plot_ratio
+
+file_path = "tests/data/tests_restricted.root"
+tree_path = "restricted_profile"
+
+# Unrestricted
+p_v0 = profile_from_tree(file_path, tree_path, "x", "v0", bins=40, range=(-5, 5))
+p_v1 = profile_from_tree(file_path, tree_path, "x", "v1", bins=40, range=(-5, 5))
+
+# Restricted: only events with y in [-4, 4]
+rp_v0 = restricted_profile_from_tree(
+    file_path, tree_path, "x", "v0",
+    restriction_branch="y", restriction_range=(-4.0, 4.0),
+    bins=40, range=(-5, 5),
+)
+rp_v1 = restricted_profile_from_tree(
+    file_path, tree_path, "x", "v1",
+    restriction_branch="y", restriction_range=(-4.0, 4.0),
+    bins=40, range=(-5, 5),
+)
+
+fig, _ = plot_ratio([rp_v0, rp_v1], [Decoration(label="v0"), Decoration(label="v1")])
+```
+
 ## Stamp a logo onto an SVG plot
 
 Use `utilities/stamp_svg.py` after exporting your figure as SVG:

@@ -7,12 +7,12 @@ from typing import Any, Sequence
 
 import numpy as np
 
-from ..histograms import band, efficiency, hist1d, hist2d, profile, scatter
+from ..histograms import band, efficiency, hist1d, hist2d, profile, restricted_profile, scatter
 from .decorations import Decoration
 
 
 def plot(
-    histogram: hist1d | hist2d | profile | efficiency | scatter | band,
+    histogram: hist1d | hist2d | profile | restricted_profile | efficiency | scatter | band,
     decoration: Decoration | None = None,
     *,
     backend: str = "matplotlib",
@@ -43,7 +43,7 @@ def plot_scatter(
 
 
 def plot_band(
-    histograms: Sequence[hist1d | profile | band],
+    histograms: Sequence[hist1d | profile | restricted_profile | band],
     decorations: Sequence[Decoration] | None = None,
     *,
     spread: str | None = None,
@@ -55,7 +55,7 @@ def plot_band(
     if len(histograms) == 0:
         raise ValueError("histograms must contain at least one item")
     for histogram in histograms:
-        if not isinstance(histogram, (hist1d, profile, band)):
+        if not isinstance(histogram, (hist1d, profile, restricted_profile, band)):
             raise TypeError("plot_band supports only hist1d, profile, or band objects")
 
     if decorations is None:
@@ -110,7 +110,7 @@ def plot_band(
 
 
 def plot_ratio(
-    histograms: Sequence[hist1d | profile],
+    histograms: Sequence[hist1d | profile | restricted_profile],
     decorations: Sequence[Decoration] | None = None,
     *,
     backend: str = "matplotlib",
@@ -120,12 +120,17 @@ def plot_ratio(
         raise ValueError("histograms must contain at least one item")
 
     for histogram in histograms:
-        if not isinstance(histogram, (hist1d, profile)):
+        if not isinstance(histogram, (hist1d, profile, restricted_profile)):
             raise TypeError("plot_ratio supports only hist1d and profile objects")
 
-    first_type = type(histograms[0])
-    if any(type(hist) is not first_type for hist in histograms):
-        raise TypeError("All histograms passed to plot_ratio must have the same type")
+    first = histograms[0]
+    profile_like = (profile, restricted_profile)
+    if isinstance(first, profile_like):
+        if any(not isinstance(hist, profile_like) for hist in histograms):
+            raise TypeError("All histograms passed to plot_ratio must be hist1d or profile-like")
+    elif isinstance(first, hist1d):
+        if any(not isinstance(hist, hist1d) for hist in histograms):
+            raise TypeError("All histograms passed to plot_ratio must be hist1d or profile-like")
 
     if decorations is None:
         decos = [Decoration() for _ in histograms]
@@ -216,7 +221,7 @@ def _band_arrays_from_histogram(
         sigma = _parse_sigma(mode)
         lower = values - sigma * errors
         upper = values + sigma * errors
-    elif isinstance(histogram, profile):
+    elif isinstance(histogram, (profile, restricted_profile)):
         edges = histogram.edges
         values = histogram.means
         errors = histogram.errors
@@ -245,7 +250,7 @@ def _band_arrays_from_histogram(
 
 def _draw_matplotlib_histogram(
     axis: Any,
-    histogram: hist1d | hist2d | profile | efficiency | scatter | band,
+    histogram: hist1d | hist2d | profile | restricted_profile | efficiency | scatter | band,
     decoration: Decoration,
     *,
     figure: Any,
@@ -276,7 +281,7 @@ def _draw_matplotlib_histogram(
             figure.colorbar(mesh, ax=axis)
         return
 
-    if isinstance(histogram, profile):
+    if isinstance(histogram, (profile, restricted_profile)):
         centers = 0.5 * (histogram.edges[:-1] + histogram.edges[1:])
         axis.errorbar(
             centers,
@@ -345,7 +350,10 @@ def _draw_matplotlib_histogram(
     raise TypeError(f"Unsupported histogram type: {type(histogram)!r}")
 
 
-def _ratio_to_denominator(numerator: hist1d | profile, denominator: hist1d | profile) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _ratio_to_denominator(
+    numerator: hist1d | profile | restricted_profile,
+    denominator: hist1d | profile | restricted_profile,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     if isinstance(numerator, hist1d):
         num_values = numerator.counts
         num_errors = numerator.errors
@@ -378,7 +386,7 @@ def _ratio_to_denominator(numerator: hist1d | profile, denominator: hist1d | pro
 
 
 def _plot_matplotlib(
-    histogram: hist1d | hist2d | profile | efficiency | scatter | band,
+    histogram: hist1d | hist2d | profile | restricted_profile | efficiency | scatter | band,
     decoration: Decoration,
     *,
     figure: Any | None,
@@ -421,7 +429,7 @@ def _apply_matplotlib_decoration(axis: Any, decoration: Decoration) -> None:
 
 
 def _plot_plotly(
-    histogram: hist1d | hist2d | profile | efficiency | scatter | band,
+    histogram: hist1d | hist2d | profile | restricted_profile | efficiency | scatter | band,
     decoration: Decoration,
     *,
     figure: Any | None,
@@ -457,7 +465,7 @@ def _plot_plotly(
             name=decoration.label or histogram.name,
         )
         _add_plotly_trace(fig, trace, row=row, col=col)
-    elif isinstance(histogram, profile):
+    elif isinstance(histogram, (profile, restricted_profile)):
         centers = 0.5 * (histogram.edges[:-1] + histogram.edges[1:])
         trace = go.Scatter(
             x=centers,

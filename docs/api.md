@@ -10,6 +10,7 @@ From `valplot`:
   - `hist1d`
   - `hist2d`
   - `profile`
+  - `restricted_profile`
   - `efficiency`
   - `scatter`
   - `band`
@@ -44,7 +45,7 @@ plot(
 )
 ```
 
-- Supports: `hist1d`, `hist2d`, `profile`, `efficiency`, `scatter`, `band`.
+- Supports: `hist1d`, `hist2d`, `profile`, `restricted_profile`, `efficiency`, `scatter`, `band`.
 - Backends:
   - `matplotlib`
   - `plotly`
@@ -60,7 +61,7 @@ plot_ratio(
 )
 ```
 
-- Supports: `hist1d` and `profile`.
+- Supports: `hist1d`, `profile`, and `restricted_profile` (profile-like types can be mixed).
 - Uses the first object as denominator.
 - Ratio panel excludes the first object (no self-ratio line).
 - Current backend support: `matplotlib` only.
@@ -97,7 +98,7 @@ plot_band(
 )
 ```
 
-- Supports: `hist1d`, `profile`, `band`.
+- Supports: `hist1d`, `profile`, `restricted_profile`, `band`.
 - `spread` options:
   - for `hist1d`/`profile`: sigma mode (`"1sigma"`, `"2sigma"`, ...)
   - for `band`: `"spread"` (default) or sigma mode
