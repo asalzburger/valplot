@@ -23,12 +23,13 @@ Outputs:
 - `examples/output/efficiency.png`
 - `examples/output/ratio_hx_hy.png`
 
-## `demo_overlay_from_trees.py`
+## `demo_overlay_from_trees.py` / `utilities/overlay_from_trees.py`
 
 Purpose:
 
 - overlay plots from multiple ROOT files/trees
 - instruction-based CLI for quick comparisons
+- demo script is a thin wrapper around `utilities/overlay_from_trees.py`
 
 Run:
 
@@ -36,17 +37,20 @@ Run:
 python examples/demo_overlay_from_trees.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
   --trees tree tree \
-  --plots profile:ratio:x:y profile::band:x:y hist1:x scatter:x:y
+  --plots profile:ratio:x:y profile:band:x:y hist1d:x scatter:x:y
 ```
 
 Instruction forms:
 
-- `hist1:<branch>`
-- `hist1:ratio:<branch>`
-- `hist1:band:<branch>`
+- `hist1d:<branch>`
+- `hist1d:ratio:<branch>`
+- `hist1d:band:<branch>`
 - `profile:<x_branch>:<y_branch>`
 - `profile:ratio:<x_branch>:<y_branch>`
-- `profile::band:<x_branch>:<y_branch>`
+- `profile:band:<x_branch>:<y_branch>`
+- `restricted_profile:<x_branch>:<y_branch>:<restriction_branch>:<lo>:<hi>`
+- `restricted_profile:ratio:<x_branch>:<y_branch>:<restriction_branch>:<lo>:<hi>`
+- `restricted_profile:band:<x_branch>:<y_branch>:<restriction_branch>:<lo>:<hi>`
 - `scatter:<x_branch>:<y_branch>`
 - `band:<x_branch>:<y_branch>`
 

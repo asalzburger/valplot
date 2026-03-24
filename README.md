@@ -21,7 +21,7 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
   - read TH1/TH2 objects
   - fill 1D/2D histograms, profiles, restricted profiles, scatters, and bands from TTree branches
 - Utility scripts:
-  - SVG stamping utility to overlay logos onto generated SVG plots
+  - `utilities/overlay_from_trees.py` for instruction-driven multi-file/tree overlays
 
 ## Installation
 
@@ -84,7 +84,7 @@ python examples/demo_root_plot.py
 
 ### Multi-file overlay CLI demo
 
-`examples/demo_overlay_from_trees.py` supports instruction-driven plotting across multiple files/trees.
+`examples/demo_overlay_from_trees.py` reuses `utilities/overlay_from_trees.py` for instruction-driven plotting across multiple files/trees.
 
 Examples:
 
@@ -92,7 +92,7 @@ Examples:
 python examples/demo_overlay_from_trees.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
   --trees tree tree \
-  --plots profile:ratio:x:y profile::band:x:y hist1:x scatter:x:y
+  --plots profile:ratio:x:y profile:band:x:y hist1d:x scatter:x:y
 ```
 
 ### Style showcase demo
