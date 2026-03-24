@@ -129,3 +129,25 @@ The returned object has the same interface as `profile` and can be used with `pl
 - In plotting:
   - `plot_band(..., spread="spread")` uses explicit `lower/upper`
   - `plot_band(..., spread="1sigma")` uses `values ± errors`
+
+## Overlay utility from trees
+
+For multi-file/tree overlays, use `utilities/overlay_from_trees.py` (also wrapped by `examples/demo_overlay_from_trees.py`).
+
+Supported instruction kinds:
+
+- `hist1d`
+- `profile`
+- `restricted_profile`
+- `scatter`
+- `band`
+
+Example:
+
+```bash
+python utilities/overlay_from_trees.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --trees tree tree \
+  --plots "hist1d:ratio:x" "profile:band:x:y" "scatter:x:y" \
+  --output-dir examples/output
+```
