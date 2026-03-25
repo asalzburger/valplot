@@ -87,8 +87,8 @@ fig_band, _ = plot_band(
 
 - ROOT integration examples: [`root-io.md`](root-io.md)
 - Complete script: [`../examples/demo_root_plot.py`](../examples/demo_root_plot.py)
-- Multi-file CLI script: [`../examples/demo_overlay_from_trees.py`](../examples/demo_overlay_from_trees.py)
-- Reusable utility: [`../utilities/overlay_from_trees.py`](../utilities/overlay_from_trees.py)
+- Multi-file CLI demo: [`../examples/demo_overlay_profiles.py`](../examples/demo_overlay_profiles.py)
+- Reusable utility: [`../utilities/overlay_profiles.py`](../utilities/overlay_profiles.py)
 - Style showcase script: [`../examples/demo_style_showcase.py`](../examples/demo_style_showcase.py)
 - Restricted profile demo: [`../examples/demo_restricted_profile.py`](../examples/demo_restricted_profile.py)
 - Practical recipes: [`howto.md`](howto.md)

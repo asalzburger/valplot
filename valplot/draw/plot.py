@@ -47,11 +47,16 @@ def plot_band(
     decorations: Sequence[Decoration] | None = None,
     *,
     spread: str | None = None,
+    show_values: bool = True,
     backend: str = "matplotlib",
     figure: Any | None = None,
     axis: Any | None = None,
 ):
-    """Overlay band plots from hist1d/profile/band objects."""
+    """Overlay band plots from hist1d/profile/band objects.
+
+    When drawing bands underneath profile means, set `show_values=False` to
+    omit the central value line and keep only the filled envelope.
+    """
     if len(histograms) == 0:
         raise ValueError("histograms must contain at least one item")
     for histogram in histograms:
@@ -93,17 +98,18 @@ def plot_band(
             alpha=deco.band_alpha if deco.band_alpha is not None else 0.5,
             color=band_color,
         )
-        ax.plot(
-            centers,
-            values,
-            label=deco.label or histogram.name,
-            color=deco.color,
-            alpha=deco.alpha,
-            linestyle=deco.line_style,
-            linewidth=deco.line_width,
-            marker=deco.marker,
-            markersize=deco.marker_size,
-        )
+        if show_values:
+            ax.plot(
+                centers,
+                values,
+                label=deco.label or histogram.name,
+                color=deco.color,
+                alpha=deco.alpha,
+                linestyle=deco.line_style,
+                linewidth=deco.line_width,
+                marker=deco.marker,
+                markersize=deco.marker_size,
+            )
 
     _apply_matplotlib_decoration(ax, decos[0])
     return fig, ax

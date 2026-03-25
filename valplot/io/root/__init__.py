@@ -2,6 +2,7 @@
 
 from .histograms import (
     band_from_tree,
+    restricted_band_from_tree,
     hist1d_from_tree,
     hist1d_from_uproot,
     hist2d_from_tree,
@@ -24,4 +25,5 @@ __all__ = [
     "restricted_profile_from_tree",
     "scatter_from_tree",
     "band_from_tree",
+    "restricted_band_from_tree",
 ]

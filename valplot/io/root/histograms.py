@@ -298,6 +298,66 @@ def band_from_tree(
     )
 
 
+def restricted_band_from_tree(
+    file_path: str,
+    tree_path: str,
+    x_branch: str,
+    y_branch: str,
+    restriction_branch: str,
+    restriction_range: tuple[float, float],
+    bins: int | np.ndarray | list[float],
+    range: tuple[float, float] | None = None,
+    name: str | None = None,
+) -> band:
+    """Create ``band`` from TTree values using per-bin min/max within a selection."""
+    uproot = _import_uproot()
+    with uproot.open(file_path) as root_file:
+        tree = root_file[tree_path]
+        requested = [x_branch, y_branch, restriction_branch]
+        arrays = tree.arrays(requested, library="np")
+
+    x_values = np.asarray(arrays[x_branch], dtype=float)
+    y_values = np.asarray(arrays[y_branch], dtype=float)
+    rest_values = np.asarray(arrays[restriction_branch], dtype=float)
+
+    lo, hi = restriction_range
+    mask = (rest_values >= lo) & (rest_values <= hi)
+    x_values = x_values[mask]
+    y_values = y_values[mask]
+
+    entries, edges = np.histogram(x_values, bins=bins, range=range)
+    entries = np.asarray(entries, dtype=float)
+    edges = np.asarray(edges, dtype=float)
+    sumy, _ = np.histogram(x_values, bins=edges, weights=y_values)
+    sumy2, _ = np.histogram(x_values, bins=edges, weights=np.square(y_values))
+    means = np.divide(sumy, entries, out=np.zeros_like(sumy, dtype=float), where=entries > 0.0)
+    second_moment = np.divide(sumy2, entries, out=np.zeros_like(sumy2, dtype=float), where=entries > 0.0)
+    errors = np.sqrt(np.clip(second_moment - np.square(means), a_min=0.0, a_max=None))
+
+    bin_ids = np.digitize(x_values, edges) - 1
+    n_bins = entries.shape[0]
+    lower = np.full(n_bins, np.nan, dtype=float)
+    upper = np.full(n_bins, np.nan, dtype=float)
+    for idx in np.arange(n_bins):
+        mask_bin = bin_ids == idx
+        if np.any(mask_bin):
+            lower[idx] = float(np.min(y_values[mask_bin]))
+            upper[idx] = float(np.max(y_values[mask_bin]))
+        else:
+            lower[idx] = means[idx]
+            upper[idx] = means[idx]
+
+    return band(
+        edges=edges,
+        values=means,
+        lower=lower,
+        upper=upper,
+        errors=errors,
+        name=name or f"{y_branch}_vs_{x_branch}",
+        metadata={"restriction_branch": restriction_branch, "restriction_range": restriction_range},
+    )
+
+
 def restricted_profile_from_tree(
     file_path: str,
     tree_path: str,

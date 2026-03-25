@@ -23,36 +23,54 @@ Outputs:
 - `examples/output/efficiency.png`
 - `examples/output/ratio_hx_hy.png`
 
-## `demo_overlay_from_trees.py` / `utilities/overlay_from_trees.py`
+## `demo_overlay_profiles.py` / `utilities/overlay_profiles.py`
 
 Purpose:
 
-- overlay plots from multiple ROOT files/trees
-- instruction-based CLI for quick comparisons
-- demo script is a thin wrapper around `utilities/overlay_from_trees.py`
+- overlay ROOT `profile`-like plots from multiple files
+- supports optional:
+  - `--band` (draw band underneath profile means, with optional `spread`/`<N>sigma`)
+  - `--ratio` (ratio panel below; modes: `full` or `range:min_val:max_val`)
+  - `--restrict` (restricted profile/band with a branch selection)
 
 Run:
 
 ```bash
-python examples/demo_overlay_from_trees.py \
+python examples/demo_overlay_profiles.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
-  --trees tree tree \
-  --plots profile:ratio:x:y profile:band:x:y hist1d:x scatter:x:y
+  --input tree \
+  --plot x:y \
+  --band spread \
+  --ratio
 ```
 
-Instruction forms:
+CLI notes:
 
-- `hist1d:<branch>`
-- `hist1d:ratio:<branch>`
-- `hist1d:band:<branch>`
-- `profile:<x_branch>:<y_branch>`
-- `profile:ratio:<x_branch>:<y_branch>`
-- `profile:band:<x_branch>:<y_branch>`
-- `restricted_profile:<x_branch>:<y_branch>:<restriction_branch>:<lo>:<hi>`
-- `restricted_profile:ratio:<x_branch>:<y_branch>:<restriction_branch>:<lo>:<hi>`
-- `restricted_profile:band:<x_branch>:<y_branch>:<restriction_branch>:<lo>:<hi>`
-- `scatter:<x_branch>:<y_branch>`
-- `band:<x_branch>:<y_branch>`
+- `--plot` value is `x:y` and create profile plots of `y` vs `x`
+- `--x-label` optional x-axis label (supports LaTeX/mathtext, e.g. `'$\\alpha$'`)
+- `--y-label` optional y-axis label (supports LaTeX/mathtext, e.g. `'$\\beta$'`)
+- `--no-title` switch off the title on the top panel
+- `--range LO HI` override the x-axis range used for binning/plotting
+- `--restrict` syntax is `branch:lo:hi` (e.g. `y:-4:4`)
+- `--band` optionally takes `spread` or `<N>sigma` (if omitted, uses default mode)
+- `--ratio` (no value) => `full` (no y-axis restriction)
+- `--ratio full` => same as `--ratio`
+- `--ratio range:min_val:max_val` => restrict the ratio panel y-axis
+- `--labels` optionally provides per-input labels (length must match `--files`). If omitted (or set to `None`), uses file stems. Ratio panel legend is always suppressed.
+
+Greek/LaTeX example:
+
+```bash
+python examples/demo_overlay_profiles.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --input tree \
+  --plot x:y \
+  --x-label '$\\alpha$' \
+  --y-label '$\\mu$' \
+  --no-title \
+  --band spread \
+  --ratio
+```
 
 ## `demo_style_showcase.py`
 

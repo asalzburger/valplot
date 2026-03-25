@@ -21,12 +21,18 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
   - read TH1/TH2 objects
   - fill 1D/2D histograms, profiles, restricted profiles, scatters, and bands from TTree branches
 - Utility scripts:
-  - `utilities/overlay_from_trees.py` for instruction-driven multi-file/tree overlays
+  - `utilities/overlay_profiles.py` for instruction-driven multi-file profile overlays
 
 ## Installation
 
 This repository currently does not ship packaging metadata (`pyproject.toml`) yet.
 For local usage, install dependencies in your environment and import from the repo checkout.
+
+To make `import valplot` work from anywhere on your machine, source the provided `setup.sh` (it automatically finds the repo root and prepends it to `PYTHONPATH`):
+
+```bash
+source /path/to/valplot/setup.sh
+```
 
 Typical requirements:
 
@@ -84,15 +90,34 @@ python examples/demo_root_plot.py
 
 ### Multi-file overlay CLI demo
 
-`examples/demo_overlay_from_trees.py` reuses `utilities/overlay_from_trees.py` for instruction-driven plotting across multiple files/trees.
+`examples/demo_overlay_profiles.py` reuses `utilities/overlay_profiles.py` for instruction-driven plotting across multiple files/trees.
 
 Examples:
 
 ```bash
-python examples/demo_overlay_from_trees.py \
+python examples/demo_overlay_profiles.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
-  --trees tree tree \
-  --plots profile:ratio:x:y profile:band:x:y hist1d:x scatter:x:y
+  --input tree \
+  --plot x:y \
+  --band spread \
+  --ratio
+```
+
+`--ratio` can be omitted (no ratio) or set to either `full` or `range:min_val:max_val` to restrict the ratio-panel y-axis.
+
+`--labels` optionally provides per-input labels (length must match `--files`). If omitted (or set to `None`), uses the file stem. Ratio panel legend/labels are always suppressed.
+
+You can also customize axis labels and turn off the title:
+```bash
+python examples/demo_overlay_profiles.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --input tree \
+  --plot x:y \
+  --x-label '$\\alpha$' \
+  --y-label '$\\beta$' \
+  --no-title \
+  --band spread \
+  --ratio
 ```
 
 ### Style showcase demo
