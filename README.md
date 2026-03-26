@@ -99,6 +99,7 @@ python examples/demo_overlay_profiles.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
   --input tree \
   --plot x:y \
+  --range -5 5 \
   --band spread \
   --ratio
 ```
@@ -106,6 +107,8 @@ python examples/demo_overlay_profiles.py \
 `--ratio` can be omitted (no ratio) or set to either `full` or `range:min_val:max_val` to restrict the ratio-panel y-axis.
 
 `--labels` optionally provides per-input labels (length must match `--files`). If omitted (or set to `None`), uses the file stem. Ratio panel legend/labels are always suppressed.
+
+`--range LO HI` optionally overrides the x-axis range used for binning/plotting. If omitted, the range is inferred from the global x spread across inputs.
 
 You can also customize axis labels and turn off the title:
 ```bash
