@@ -5,6 +5,7 @@ import pytest
 
 from valplot.io.root.histograms import (
     band_from_tree,
+    restricted_band_from_tree,
     hist1d_from_tree,
     hist1d_from_uproot,
     hist2d_from_tree,
@@ -238,6 +239,45 @@ def test_band_from_tree(monkeypatch):
     np.testing.assert_allclose(b.values, [2.0, 4.0])
     np.testing.assert_allclose(b.lower, [1.0, 2.0])
     np.testing.assert_allclose(b.upper, [3.0, 6.0])
+
+
+def test_restricted_band_from_tree(monkeypatch):
+    # x, y, z. Restrict z in [0.5, 1.5] -> keep indices 0, 2, 3
+    arrays = {
+        "x": np.array([0.1, 0.2, 1.2, 1.9], dtype=float),
+        "y": np.array([1.0, 3.0, 2.0, 6.0], dtype=float),
+        "z": np.array([0.5, 2.0, 1.0, 1.2], dtype=float),
+    }
+    fake_tree = _FakeTree(arrays)
+    fake_file = _FakeRootFile({"events": fake_tree})
+
+    class _FakeUproot:
+        @staticmethod
+        def open(_):
+            return fake_file
+
+    monkeypatch.setattr("valplot.io.root.histograms._import_uproot", lambda: _FakeUproot)
+
+    b = restricted_band_from_tree(
+        "input.root",
+        "events",
+        x_branch="x",
+        y_branch="y",
+        restriction_branch="z",
+        restriction_range=(0.5, 1.5),
+        bins=2,
+        range=(0.0, 2.0),
+        name="b",
+    )
+
+    np.testing.assert_allclose(b.edges, [0.0, 1.0, 2.0])
+    # After filter: x=[0.1, 1.2, 1.9], y=[1.0, 2.0, 6.0]
+    # bin 0: y=[1.0] -> mean=1, min/max=1, error=0
+    # bin 1: y=[2.0, 6.0] -> mean=4, min/max=2..6, error=sqrt(4)=2
+    np.testing.assert_allclose(b.values, [1.0, 4.0])
+    np.testing.assert_allclose(b.lower, [1.0, 2.0])
+    np.testing.assert_allclose(b.upper, [1.0, 6.0])
+    np.testing.assert_allclose(b.errors, [0.0, 2.0])
 
 
 def test_restricted_profile_class():

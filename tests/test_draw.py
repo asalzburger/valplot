@@ -1,5 +1,6 @@
 import sys
 import types
+from dataclasses import replace
 
 import pytest
 
@@ -17,6 +18,11 @@ class _FakeAxis:
         self.calls.append(("stairs", counts, edges, kwargs))
         if kwargs.get("label"):
             self._labels.append(kwargs["label"])
+
+    def cla(self):
+        # Mimic matplotlib's Axes.cla by clearing previous draw calls.
+        self.calls.clear()
+        self._labels.clear()
 
     def pcolormesh(self, *args, **kwargs):
         self.calls.append(("pcolormesh", args, kwargs))
@@ -258,6 +264,45 @@ def test_plot_ratio_mixed_profile_restricted_profile(monkeypatch):
     assert any(call[0] == "errorbar" for call in top_ax.calls)
 
 
+def test_plot_ratio_plus_band_overlay_for_restricted_profile(monkeypatch):
+    _install_fake_matplotlib(monkeypatch)
+
+    rp1 = restricted_profile(
+        edges=[0.0, 1.0, 2.0],
+        means=[2.0, 4.0],
+        errors=[0.2, 0.3],
+        entries=[10.0, 20.0],
+        name="rp1",
+    )
+    rp2 = restricted_profile(
+        edges=[0.0, 1.0, 2.0],
+        means=[1.0, 8.0],
+        errors=[0.1, 0.4],
+        entries=[8.0, 22.0],
+        name="rp2",
+    )
+
+    fig, (top_ax, ratio_ax) = plot_ratio(
+        [rp1, rp2],
+        [Decoration(label="rp1"), Decoration(label="rp2", line_style="--")],
+        backend="matplotlib",
+    )
+
+    # Clear top panel and redraw it as a band (envelope).
+    top_ax.cla()
+    plot_band(
+        [rp1, rp2],
+        [replace(Decoration(label="rp1"), x_label=None), replace(Decoration(label="rp2", line_style="--"), x_label=None)],
+        backend="matplotlib",
+        figure=fig,
+        axis=top_ax,
+    )
+
+    assert any(call[0] == "fill_between" for call in top_ax.calls)
+    assert not any(call[0] == "errorbar" for call in top_ax.calls)
+    assert any(call[0] == "errorbar" for call in ratio_ax.calls)
+
+
 def test_plot_ratio_rejects_mixed_types(monkeypatch):
     _install_fake_matplotlib(monkeypatch)
     h = hist1d(edges=[0.0, 1.0, 2.0], counts=[1.0, 2.0], name="h")
@@ -291,6 +336,15 @@ def test_plot_band_from_profile(monkeypatch):
     _, ax = plot_band([p], [Decoration(label="p", color="tab:blue")], backend="matplotlib")
     assert any(call[0] == "fill_between" for call in ax.calls)
     assert any(call[0] == "plot" for call in ax.calls)
+
+
+def test_plot_band_show_values_false(monkeypatch):
+    _install_fake_matplotlib(monkeypatch)
+    p = profile(edges=[0.0, 1.0, 2.0], means=[2.0, 4.0], errors=[0.2, 0.3], entries=[10.0, 20.0], name="p")
+
+    _, ax = plot_band([p], [Decoration(label="p", color="tab:blue")], spread="1sigma", show_values=False, backend="matplotlib")
+    assert any(call[0] == "fill_between" for call in ax.calls)
+    assert not any(call[0] == "plot" for call in ax.calls)
 
 
 def test_plot_band_from_band_spread(monkeypatch):

@@ -10,6 +10,7 @@
 - `hist2d_from_tree(file_path, tree_path, x_branch, y_branch, bins, range=None, weight_branch=None, name=None)`
 - `profile_from_tree(file_path, tree_path, x_branch, y_branch, bins, range=None, weight_branch=None, name=None)`
 - `restricted_profile_from_tree(file_path, tree_path, x_branch, y_branch, restriction_branch, restriction_range, bins, range=None, weight_branch=None, name=None)`
+- `restricted_band_from_tree(file_path, tree_path, x_branch, y_branch, restriction_branch, restriction_range, bins, range=None, name=None)`
 - `scatter_from_tree(file_path, tree_path, x_branch, y_branch, name=None)`
 - `band_from_tree(file_path, tree_path, x_branch, y_branch, bins, range=None, name=None)`
 
@@ -130,24 +131,30 @@ The returned object has the same interface as `profile` and can be used with `pl
   - `plot_band(..., spread="spread")` uses explicit `lower/upper`
   - `plot_band(..., spread="1sigma")` uses `values ± errors`
 
-## Overlay utility from trees
+## Overlay utility for profiles
 
-For multi-file/tree overlays, use `utilities/overlay_from_trees.py` (also wrapped by `examples/demo_overlay_from_trees.py`).
+For multi-file/tree overlays of `profile`-like objects (profiles and optional restricted selection), use `utilities/overlay_profiles.py` (also wrapped by `examples/demo_overlay_profiles.py`).
 
-Supported instruction kinds:
+The utility builds:
 
-- `hist1d`
-- `profile`
-- `restricted_profile`
-- `scatter`
-- `band`
+- profile means (via `profile_from_tree` / `restricted_profile_from_tree`)
+- optional band envelopes underneath (via `band_from_tree` / `restricted_band_from_tree`)
+- optional ratio panel (via `plot_ratio`)
 
 Example:
 
 ```bash
-python utilities/overlay_from_trees.py \
+python utilities/overlay_profiles.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
-  --trees tree tree \
-  --plots "hist1d:ratio:x" "profile:band:x:y" "scatter:x:y" \
+  --input tree \
+  --plot x:y \
+  --range -5 5 \
+  --band spread \
+  --ratio \
   --output-dir examples/output
 ```
+
+Ratio y-axis modes:
+- omit `--ratio` => no ratio panel
+- `--ratio` or `--ratio full` => ratio panel with full y-range
+- `--ratio range:min_val:max_val` => restrict ratio panel y-axis

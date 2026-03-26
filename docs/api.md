@@ -92,6 +92,7 @@ plot_band(
     decorations=None,
     *,
     spread=None,
+    show_values=True,
     backend="matplotlib",
     figure=None,
     axis=None,
@@ -102,4 +103,5 @@ plot_band(
 - `spread` options:
   - for `hist1d`/`profile`: sigma mode (`"1sigma"`, `"2sigma"`, ...)
   - for `band`: `"spread"` (default) or sigma mode
+- `show_values`: when `False`, omit the central value line and draw only the filled envelope.
 - Current backend support: `matplotlib` only.
