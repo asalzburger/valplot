@@ -1,4 +1,4 @@
-"""Deprecated typo wrapper; use demo_overlay_hist.py."""
+"""Demo: overlay hist1d and efficiency using utilities.overlay_hist."""
 
 from __future__ import annotations
 
