@@ -64,4 +64,3 @@ def test_overlay_hist_runnable_from_anywhere_non_root_file(tmp_path: Path):
     )
     assert proc.returncode != 0
     assert "All --files must end with '.root'" in (proc.stderr + proc.stdout)
-
