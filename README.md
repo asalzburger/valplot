@@ -22,6 +22,7 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
   - fill 1D/2D histograms, profiles, restricted profiles, scatters, and bands from TTree branches
 - Utility scripts:
   - `utilities/overlay_profiles.py` for instruction-driven multi-file profile overlays
+  - `utilities/overay_hist.py` for instruction-driven multi-file hist1d/efficiency overlays
 
 ## Installation
 
@@ -121,6 +122,40 @@ python examples/demo_overlay_profiles.py \
   --no-title \
   --band spread \
   --ratio
+```
+
+### Histogram overlay CLI utility
+
+`utilities/overay_hist.py` overlays 1D ROOT histogram-like objects (`hist1d` and `efficiency`) with optional ratio and band decoration.
+
+`hist1d` example:
+
+```bash
+python utilities/overay_hist.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --kind hist1d \
+  --input hx hy \
+  --labels "hx from file1" "hy from file2" \
+  --band 1sigma \
+  --ratio full
+```
+
+`efficiency` example (input format: `passed_obj:total_obj`):
+
+```bash
+python utilities/overay_hist.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --kind efficiency \
+  --input h_pass:hx h_pass:hx \
+  --ratio range:0.5:1.5 \
+  --x-label '$\\eta$' \
+  --y-label 'Efficiency'
+```
+
+Demo wrapper:
+
+```bash
+python examples/demo_overay_hist.py
 ```
 
 ### Style showcase demo

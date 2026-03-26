@@ -72,6 +72,41 @@ python examples/demo_overlay_profiles.py \
   --ratio
 ```
 
+## `utilities/overay_hist.py`
+
+Purpose:
+
+- overlay 1D ROOT histogram-like objects across files
+- supports `hist1d` and `efficiency`
+- optional `--ratio` and `--band` modes, plus labels/title/axis customization
+
+Run (`hist1d`):
+
+```bash
+python utilities/overay_hist.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --kind hist1d \
+  --input hx hy \
+  --band 1sigma \
+  --ratio full
+```
+
+Run (`efficiency`):
+
+```bash
+python utilities/overay_hist.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --kind efficiency \
+  --input h_pass:hx h_pass:hx \
+  --ratio range:0.5:1.5
+```
+
+Demo wrapper:
+
+```bash
+python examples/demo_overay_hist.py
+```
+
 ## `demo_style_showcase.py`
 
 Purpose:
