@@ -72,7 +72,7 @@ python examples/demo_overlay_profiles.py \
   --ratio
 ```
 
-## `utilities/overay_hist.py`
+## `utilities/overlay_hist.py`
 
 Purpose:
 
@@ -83,7 +83,7 @@ Purpose:
 Run (`hist1d`):
 
 ```bash
-python utilities/overay_hist.py \
+python utilities/overlay_hist.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
   --kind hist1d \
   --input hx hy \
@@ -94,7 +94,7 @@ python utilities/overay_hist.py \
 Run (`efficiency`):
 
 ```bash
-python utilities/overay_hist.py \
+python utilities/overlay_hist.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
   --kind efficiency \
   --input h_pass:hx h_pass:hx \
@@ -104,7 +104,7 @@ python utilities/overay_hist.py \
 Demo wrapper:
 
 ```bash
-python examples/demo_overay_hist.py
+python examples/demo_overlay_hist.py
 ```
 
 ## `demo_style_showcase.py`

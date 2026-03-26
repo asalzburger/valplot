@@ -1,4 +1,4 @@
-"""Demo: overlay hist1d and efficiency using utilities.overay_hist."""
+"""Demo: overlay hist1d and efficiency using utilities.overlay_hist."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ if str(REPO_ROOT) not in sys.path:
 os.environ.setdefault("MPLBACKEND", "Agg")
 os.environ.setdefault("MPLCONFIGDIR", str(REPO_ROOT / ".mplconfig"))
 
-from utilities.overay_hist import main
+from utilities.overlay_hist import main
 
 
 if __name__ == "__main__":

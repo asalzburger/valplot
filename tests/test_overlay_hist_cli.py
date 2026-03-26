@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from utilities.overay_hist import parse_band_spread, parse_eff_input, parse_labels, parse_ratio_mode
+from utilities.overlay_hist import parse_band_spread, parse_eff_input, parse_labels, parse_ratio_mode
 
 
 @pytest.mark.parametrize("token,expected", [(None, None), ("spread", "spread"), ("2sigma", "2sigma"), ("1.5sigma", "1.5sigma")])
@@ -51,11 +51,11 @@ def test_parse_labels_length_mismatch_raises():
         parse_labels(["a"], n_files=2)
 
 
-def test_overay_hist_runnable_from_anywhere_non_root_file(tmp_path: Path):
+def test_overlay_hist_runnable_from_anywhere_non_root_file(tmp_path: Path):
     dummy = tmp_path / "dummy.txt"
     dummy.write_text("not a root file")
 
-    script = Path(__file__).resolve().parents[1] / "utilities" / "overay_hist.py"
+    script = Path(__file__).resolve().parents[1] / "utilities" / "overlay_hist.py"
     proc = subprocess.run(
         [sys.executable, str(script), "--files", str(dummy), "--kind", "hist1d", "--input", "hx"],
         cwd=str(tmp_path),
@@ -64,4 +64,3 @@ def test_overay_hist_runnable_from_anywhere_non_root_file(tmp_path: Path):
     )
     assert proc.returncode != 0
     assert "All --files must end with '.root'" in (proc.stderr + proc.stdout)
-
