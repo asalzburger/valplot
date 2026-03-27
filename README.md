@@ -23,6 +23,7 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
 - Utility scripts:
   - `utilities/overlay_profiles.py` for instruction-driven multi-file profile overlays
   - `utilities/overlay_hist.py` for instruction-driven multi-file hist1d/efficiency overlays
+  - `utilities/read_tefficiency.py` for TEfficiency read + fallback demonstration
 
 ## Installation
 
@@ -156,6 +157,17 @@ Demo wrapper:
 
 ```bash
 python examples/demo_overlay_hist.py
+```
+
+### TEfficiency fallback utility
+
+When `uproot` cannot deserialize a `TEfficiency` streamer payload, `valplot.io.root` now tries a PyROOT fallback (`ROOT.TEfficiency` + `GetTotalHistogram()`/`GetPassedHistogram()`).
+
+```bash
+python utilities/read_tefficiency.py \
+  --file tests/data/tests_efficiency.root \
+  --object efficiency \
+  --output-dir examples/output
 ```
 
 ### Style showcase demo
