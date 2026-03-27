@@ -23,6 +23,7 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
 - Utility scripts:
   - `utilities/overlay_profiles.py` for instruction-driven multi-file profile overlays
   - `utilities/overlay_hist.py` for instruction-driven multi-file hist1d/efficiency overlays
+  - `utilities/read_tefficiency.py` for TEfficiency read + fallback demonstration
 
 ## Installation
 
@@ -102,7 +103,8 @@ python examples/demo_overlay_profiles.py \
   --plot x:y \
   --range -5 5 \
   --band spread \
-  --ratio
+  --ratio \
+  --show
 ```
 
 `--ratio` can be omitted (no ratio) or set to either `full` or `range:min_val:max_val` to restrict the ratio-panel y-axis.
@@ -137,7 +139,8 @@ python utilities/overlay_hist.py \
   --input hx hy \
   --labels "hx from file1" "hy from file2" \
   --band 1sigma \
-  --ratio full
+  --ratio full \
+  --show
 ```
 
 `efficiency` example (input format: `TEfficiency_object`):
@@ -149,13 +152,25 @@ python utilities/overlay_hist.py \
   --input eff_x eff_x \
   --ratio range:0.5:1.5 \
   --x-label '$\\eta$' \
-  --y-label 'Efficiency'
+  --y-label 'Efficiency' \
+  --show
 ```
 
 Demo wrapper:
 
 ```bash
 python examples/demo_overlay_hist.py
+```
+
+### TEfficiency fallback utility
+
+When `uproot` cannot deserialize a `TEfficiency` streamer payload, `valplot.io.root` now tries a PyROOT fallback (`ROOT.TEfficiency` + `GetTotalHistogram()`/`GetPassedHistogram()`).
+
+```bash
+python utilities/read_tefficiency.py \
+  --file tests/data/tests_efficiency.root \
+  --object efficiency \
+  --output-dir examples/output
 ```
 
 ### Style showcase demo

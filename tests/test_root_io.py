@@ -5,7 +5,9 @@ import pytest
 
 from valplot.io.root.histograms import (
     band_from_tree,
+    efficiency_from_tefficiency_root,
     efficiency_from_tefficiency_uproot,
+    hist1d_from_tefficiency_root,
     hist1d_from_tefficiency_uproot,
     restricted_band_from_tree,
     hist1d_from_tree,
@@ -509,3 +511,36 @@ def test_read_hist1d_tefficiency_real_root_file():
     assert h.n_bins > 0
     assert np.all(h.counts >= 0.0)
     assert np.all(h.counts <= 1.0 + 1e-12)
+
+
+def test_tefficiency_root_fallback_real_root_file():
+    pytest.importorskip("ROOT")
+    assert TESTS_EFF_ROOT.exists()
+
+    eff = efficiency_from_tefficiency_root(str(TESTS_EFF_ROOT), "efficiency", name="eff_root")
+    h = hist1d_from_tefficiency_root(str(TESTS_EFF_ROOT), "efficiency", name="eff_hist")
+
+    assert eff.n_bins > 0
+    assert h.n_bins == eff.n_bins
+    np.testing.assert_allclose(h.edges, eff.edges)
+    np.testing.assert_allclose(h.counts, eff.values)
+    np.testing.assert_allclose(h.errors, eff.errors)
+
+
+def test_read_tefficiency_fallback_when_uproot_streamer_unavailable(monkeypatch):
+    pytest.importorskip("ROOT")
+    assert TESTS_EFF_ROOT.exists()
+
+    class _BrokenUproot:
+        @staticmethod
+        def open(_):
+            raise NotImplementedError("Simulated unsupported TEfficiency streamer payload")
+
+    monkeypatch.setattr("valplot.io.root.histograms._import_uproot", lambda: _BrokenUproot)
+
+    eff = read_tefficiency(str(TESTS_EFF_ROOT), "efficiency")
+    h = read_hist1d(str(TESTS_EFF_ROOT), "efficiency")
+
+    assert eff.n_bins > 0
+    assert h.n_bins == eff.n_bins
+    np.testing.assert_allclose(h.edges, eff.edges)

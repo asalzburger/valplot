@@ -41,7 +41,8 @@ python examples/demo_overlay_profiles.py \
   --input tree \
   --plot x:y \
   --band spread \
-  --ratio
+  --ratio \
+  --show
 ```
 
 CLI notes:
@@ -57,6 +58,7 @@ CLI notes:
 - `--ratio full` => same as `--ratio`
 - `--ratio range:min_val:max_val` => restrict the ratio panel y-axis
 - `--labels` optionally provides per-input labels (length must match `--files`). If omitted (or set to `None`), uses file stems. Ratio panel legend is always suppressed.
+- `--show` keeps the script running and shows the resulting canvas
 
 Greek/LaTeX example:
 
@@ -88,7 +90,8 @@ python utilities/overlay_hist.py \
   --kind hist1d \
   --input hx hy \
   --band 1sigma \
-  --ratio full
+  --ratio full \
+  --show
 ```
 
 Run (`efficiency`, expects TEfficiency objects):
@@ -98,7 +101,8 @@ python utilities/overlay_hist.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
   --kind efficiency \
   --input eff_x eff_x \
-  --ratio range:0.5:1.5
+  --ratio range:0.5:1.5 \
+  --show
 ```
 
 Demo wrapper:

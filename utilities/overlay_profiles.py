@@ -267,6 +267,11 @@ def build_parser(description: str | None = None) -> argparse.ArgumentParser:
         help="Number of bins for x (default: 50).",
     )
     parser.add_argument("--backend", default="matplotlib", choices=["matplotlib"], help="Plotting backend.")
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Show the resulting plot canvas and keep the script running until it is closed.",
+    )
     return parser
 
 
@@ -529,6 +534,14 @@ def main(argv: list[str] | None = None) -> int:
     fig.savefig(out_png, dpi=140, bbox_inches="tight")
     fig.savefig(out_svg, dpi=140, bbox_inches="tight")
     written.extend([out_png, out_svg])
+
+    if args.show:
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError as exc:
+            print(f"Error: matplotlib is required for --show ({exc})", file=sys.stderr)
+            return 2
+        plt.show()
 
     for p in written:
         print(f"Wrote: {p}")

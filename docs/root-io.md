@@ -13,6 +13,8 @@
 - `restricted_band_from_tree(file_path, tree_path, x_branch, y_branch, restriction_branch, restriction_range, bins, range=None, name=None)`
 - `scatter_from_tree(file_path, tree_path, x_branch, y_branch, name=None)`
 - `band_from_tree(file_path, tree_path, x_branch, y_branch, bins, range=None, name=None)`
+- `efficiency_from_tefficiency_root(file_path, object_path, name=None)` (PyROOT fallback path)
+- `hist1d_from_tefficiency_root(file_path, object_path, name=None)` (PyROOT fallback path)
 
 ## Reading ROOT histogram objects
 
@@ -151,6 +153,7 @@ python utilities/overlay_profiles.py \
   --range -5 5 \
   --band spread \
   --ratio \
+  --show \
   --output-dir examples/output
 ```
 
@@ -172,5 +175,25 @@ python utilities/overlay_hist.py \
   --input hx hy \
   --band 1sigma \
   --ratio full \
+  --show \
+  --output-dir examples/output
+```
+
+## TEfficiency fallback via PyROOT
+
+Some ROOT files contain `TEfficiency` streamer payloads that specific `uproot` versions cannot deserialize. In that case, `read_tefficiency(...)` and `read_hist1d(...)` now automatically try a PyROOT fallback:
+
+- `import ROOT`
+- open with `ROOT.TFile`
+- fetch `TEfficiency`
+- access backing TH1 via `GetTotalHistogram()`/`GetPassedHistogram()`
+- continue conversion into `efficiency` / `hist1d`
+
+Utility script example:
+
+```bash
+python utilities/read_tefficiency.py \
+  --file tests/data/tests_efficiency.root \
+  --object efficiency \
   --output-dir examples/output
 ```

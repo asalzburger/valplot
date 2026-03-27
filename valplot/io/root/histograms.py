@@ -17,6 +17,14 @@ def _import_uproot():
     return uproot
 
 
+def _import_root():
+    try:
+        import ROOT
+    except ImportError as exc:  # pragma: no cover - exercised by users without ROOT
+        raise ImportError("PyROOT is required for this fallback. Install ROOT with Python bindings.") from exc
+    return ROOT
+
+
 def _th1_bin_contents(obj: Any) -> np.ndarray:
     """TH1-like bin contents, preferring ``values(flow=False)`` when available."""
     values_fn = getattr(obj, "values", None)
@@ -39,6 +47,15 @@ def _th1_edges(obj: Any) -> np.ndarray:
             return np.asarray(edges_fn(flow=False), dtype=float)
     _, edges = obj.to_numpy(flow=False)
     return np.asarray(edges, dtype=float)
+
+
+def _th1_arrays_from_root_hist(obj: Any) -> tuple[np.ndarray, np.ndarray]:
+    """Extract (values, edges) from a ROOT TH1-like object."""
+    n_bins = int(obj.GetNbinsX())
+    values = np.asarray([float(obj.GetBinContent(i)) for i in range(1, n_bins + 1)], dtype=float)
+    axis = obj.GetXaxis()
+    edges = np.asarray([float(axis.GetBinLowEdge(i)) for i in range(1, n_bins + 2)], dtype=float)
+    return values, edges
 
 
 def hist1d_from_uproot(obj: Any, name: str | None = None) -> hist1d:
@@ -113,6 +130,41 @@ def hist1d_from_tefficiency_uproot(obj: Any, name: str | None = None) -> hist1d:
     return hist1d(edges=eff.edges, counts=eff.values, errors=eff.errors, name=name)
 
 
+def efficiency_from_tefficiency_root(
+    file_path: str, object_path: str, name: str | None = None
+) -> efficiency:
+    """Read TEfficiency with PyROOT and convert to :class:`efficiency`."""
+    ROOT = _import_root()
+    root_file = ROOT.TFile.Open(file_path, "READ")
+    if not root_file or root_file.IsZombie():
+        raise OSError(f"Could not open ROOT file '{file_path}' with PyROOT.")
+    try:
+        teff = root_file.Get(object_path)
+        if not teff:
+            raise KeyError(f"Object '{object_path}' not found in '{file_path}'.")
+        if not teff.InheritsFrom("TEfficiency"):
+            raise ValueError(f"Object '{object_path}' is not a TEfficiency.")
+
+        passed_h = teff.GetPassedHistogram()
+        total_h = teff.GetTotalHistogram()
+        if passed_h is None or total_h is None:
+            raise ValueError("TEfficiency passed/total histograms are not available.")
+
+        passed_values, edges_passed = _th1_arrays_from_root_hist(passed_h)
+        total_values, edges_total = _th1_arrays_from_root_hist(total_h)
+        if edges_passed.shape != edges_total.shape or not np.allclose(edges_passed, edges_total):
+            raise ValueError("TEfficiency passed/total histograms must have matching edges.")
+        return efficiency(edges=edges_passed, passed=passed_values, total=total_values, name=name or object_path)
+    finally:
+        root_file.Close()
+
+
+def hist1d_from_tefficiency_root(file_path: str, object_path: str, name: str | None = None) -> hist1d:
+    """Read TEfficiency with PyROOT and convert to ``hist1d`` of efficiency values."""
+    eff = efficiency_from_tefficiency_root(file_path, object_path, name=name)
+    return hist1d(edges=eff.edges, counts=eff.values, errors=eff.errors, name=name or object_path)
+
+
 def hist2d_from_uproot(obj: Any, name: str | None = None) -> hist2d:
     """Build a ``hist2d`` from a TH2-like uproot object."""
     counts, x_edges, y_edges = obj.to_numpy(flow=False)
@@ -157,13 +209,19 @@ def read_hist1d(file_path: str, object_path: str) -> hist1d:
         try:
             obj = root_file[object_path]
         except NotImplementedError as exc:
-            raise NotImplementedError(
-                "uproot could not deserialize this object. "
-                "If this is a TEfficiency with unsupported streamer payload, "
-                "read passed/total TH1 objects instead."
-            ) from exc
+            try:
+                return hist1d_from_tefficiency_root(file_path, object_path, name=object_path)
+            except Exception:
+                raise NotImplementedError(
+                    "uproot could not deserialize this object. "
+                    "If this is a TEfficiency with unsupported streamer payload, "
+                    "install PyROOT to enable fallback conversion."
+                ) from exc
         if getattr(obj, "classname", "") == "TEfficiency":
-            return hist1d_from_tefficiency_uproot(obj, name=object_path)
+            try:
+                return hist1d_from_tefficiency_uproot(obj, name=object_path)
+            except Exception:
+                return hist1d_from_tefficiency_root(file_path, object_path, name=object_path)
         return hist1d_from_uproot(obj, name=object_path)
 
 
@@ -174,17 +232,22 @@ def read_tefficiency(file_path: str, object_path: str) -> efficiency:
         try:
             obj = root_file[object_path]
         except NotImplementedError as exc:
-            raise NotImplementedError(
-                "uproot could not deserialize this object. "
-                "If this is a TEfficiency with unsupported streamer payload, "
-                "try a different uproot version or export passed/total TH1 objects."
-            ) from exc
+            try:
+                return efficiency_from_tefficiency_root(file_path, object_path, name=object_path)
+            except Exception:
+                raise NotImplementedError(
+                    "uproot could not deserialize this object. "
+                    "Install PyROOT to enable TEfficiency fallback conversion."
+                ) from exc
         if getattr(obj, "classname", "") != "TEfficiency":
             raise ValueError(
                 f"ROOT object '{object_path}' has classname {getattr(obj, 'classname', '')!r}; "
                 "expected 'TEfficiency'."
             )
-        return efficiency_from_tefficiency_uproot(obj, name=object_path)
+        try:
+            return efficiency_from_tefficiency_uproot(obj, name=object_path)
+        except Exception:
+            return efficiency_from_tefficiency_root(file_path, object_path, name=object_path)
 
 
 def read_hist2d(file_path: str, object_path: str) -> hist2d:
