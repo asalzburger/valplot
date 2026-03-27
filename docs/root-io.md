@@ -153,6 +153,7 @@ python utilities/overlay_profiles.py \
   --range -5 5 \
   --band spread \
   --ratio \
+  --show \
   --output-dir examples/output
 ```
 
@@ -174,6 +175,7 @@ python utilities/overlay_hist.py \
   --input hx hy \
   --band 1sigma \
   --ratio full \
+  --show \
   --output-dir examples/output
 ```
 
