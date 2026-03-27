@@ -5,6 +5,7 @@ import pytest
 
 from valplot.io.root.histograms import (
     band_from_tree,
+    efficiency_from_tefficiency_uproot,
     hist1d_from_tefficiency_uproot,
     restricted_band_from_tree,
     hist1d_from_tree,
@@ -13,6 +14,7 @@ from valplot.io.root.histograms import (
     hist2d_from_uproot,
     profile_from_tree,
     read_hist1d,
+    read_tefficiency,
     restricted_profile_from_tree,
     scatter_from_tree,
 )
@@ -24,12 +26,28 @@ TESTS_RESTRICTED_ROOT = Path(__file__).parent / "data" / "tests_restricted.root"
 TESTS_EFF_ROOT = Path(__file__).parent / "data" / "tests_efficiency.root"
 
 
+class _FakeTH1Axis:
+    def __init__(self, edges: np.ndarray):
+        self._edges = edges
+
+    def edges(self, flow=False):
+        return self._edges
+
+
 class _FakeTH1:
     def __init__(self):
         self._counts = np.array([2.0, 3.0], dtype=float)
         self._edges = np.array([0.0, 1.0, 2.0], dtype=float)
         self._flow_counts = np.array([1.0, 2.0, 3.0, 4.0], dtype=float)
         self._variances = np.array([4.0, 9.0], dtype=float)
+
+    def axis(self):
+        return _FakeTH1Axis(self._edges)
+
+    def values(self, flow=False):
+        if flow:
+            return self._flow_counts
+        return self._counts
 
     def to_numpy(self, flow=False):
         if flow:
@@ -179,6 +197,29 @@ def test_hist1d_from_tefficiency_uproot():
     np.testing.assert_allclose(h.edges, [0.0, 1.0, 2.0])
     np.testing.assert_allclose(h.counts, [0.5, 0.5])
     assert np.all(h.errors > 0.0)
+
+
+def test_efficiency_from_tefficiency_uproot():
+    eff = efficiency_from_tefficiency_uproot(_FakeTEff(), name="eff")
+    np.testing.assert_allclose(eff.edges, [0.0, 1.0, 2.0])
+    np.testing.assert_allclose(eff.passed, [2.0, 3.0])
+    np.testing.assert_allclose(eff.total, [4.0, 6.0])
+    np.testing.assert_allclose(eff.values, [0.5, 0.5])
+    assert np.all(eff.errors > 0.0)
+
+
+def test_read_tefficiency(monkeypatch):
+    fake_file = _FakeRootFile({"e1": _FakeTEff()})
+
+    class _FakeUproot:
+        @staticmethod
+        def open(_):
+            return fake_file
+
+    monkeypatch.setattr("valplot.io.root.histograms._import_uproot", lambda: _FakeUproot)
+    eff = read_tefficiency("input.root", "e1")
+    np.testing.assert_allclose(eff.passed, [2.0, 3.0])
+    np.testing.assert_allclose(eff.total, [4.0, 6.0])
 
 
 def test_profile_from_tree(monkeypatch):
@@ -388,13 +429,16 @@ def test_real_root_file_conversions():
 
         eff_x = efficiency(edges=hx.edges, passed=h_pass.counts, total=hx.counts, name="eff_x")
 
-        # Try reading TEfficiency directly when supported by the uproot version.
-        # Some versions cannot deserialize the object payload in this test file.
         try:
             teff_obj = root_file["eff_x"]
             assert teff_obj.classname == "TEfficiency"
+            eff_from_teff = efficiency_from_tefficiency_uproot(teff_obj, name="eff_x")
+            assert eff_from_teff.n_bins == eff_x.n_bins
+            np.testing.assert_allclose(eff_from_teff.passed, eff_x.passed, rtol=1e-5, atol=1e-8)
+            np.testing.assert_allclose(eff_from_teff.total, eff_x.total, rtol=1e-5, atol=1e-8)
+            np.testing.assert_allclose(eff_from_teff.edges, eff_x.edges, rtol=1e-5, atol=1e-8)
         except NotImplementedError:
-            teff_obj = None
+            pass
 
     assert hx.n_bins > 0
     assert hy.n_bins > 0

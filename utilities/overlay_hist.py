@@ -14,8 +14,6 @@ from dataclasses import replace
 from pathlib import Path
 import re
 import sys
-from typing import Any
-
 import numpy as np
 
 # Allow running this file directly from an absolute path.
@@ -24,7 +22,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from valplot import Decoration, efficiency as efficiency_obj, hist1d, plot, plot_band, plot_ratio
-from valplot.io.root import read_hist1d
+from valplot.io.root import read_hist1d, read_tefficiency
 
 
 _SIGMA_RE = re.compile(r"^(?:\d+(?:\.\d+)?|\.\d+)sigma$")
@@ -212,25 +210,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Error: {e}", file=sys.stderr)
                 return 2
             try:
-                h_eff = read_hist1d(file_path, teff_obj)
+                eff = read_tefficiency(file_path, teff_obj)
             except Exception as e:
                 print(f"Error: failed to read TEfficiency '{teff_obj}' from '{file_path}': {e}", file=sys.stderr)
                 return 2
-            if np.any(h_eff.counts < -1e-12) or np.any(h_eff.counts > 1.0 + 1e-12):
-                print(
-                    f"Error: object '{teff_obj}' does not look like a TEfficiency-derived histogram (values outside [0,1]).",
-                    file=sys.stderr,
-                )
-                return 2
-            eff = efficiency_obj(
-                edges=h_eff.edges,
-                passed=np.clip(h_eff.counts, 0.0, 1.0),
-                total=np.ones_like(h_eff.counts, dtype=float),
-                errors=h_eff.errors,
-                name=label,
-            )
+            eff = replace(eff, name=label)
             objects.append(eff)
-            # Ratio/band helper path: map efficiency values/errors to a hist1d-like container.
             ratio_objects.append(hist1d(edges=eff.edges, counts=eff.values, errors=eff.errors, name=label))
 
         decorations.append(

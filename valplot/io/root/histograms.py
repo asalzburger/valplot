@@ -6,7 +6,7 @@ from typing import Any
 
 import numpy as np
 
-from ...histograms import band, hist1d, hist2d, profile, restricted_profile, scatter
+from ...histograms import band, efficiency, hist1d, hist2d, profile, restricted_profile, scatter
 
 
 def _import_uproot():
@@ -15,6 +15,30 @@ def _import_uproot():
     except ImportError as exc:  # pragma: no cover - exercised by users without optional dependency
         raise ImportError("uproot is required for ROOT I/O. Install it with `pip install uproot`.") from exc
     return uproot
+
+
+def _th1_bin_contents(obj: Any) -> np.ndarray:
+    """TH1-like bin contents, preferring ``values(flow=False)`` when available."""
+    values_fn = getattr(obj, "values", None)
+    if callable(values_fn):
+        try:
+            return np.asarray(values_fn(flow=False), dtype=float)
+        except TypeError:
+            return np.asarray(values_fn(), dtype=float)
+    counts, _ = obj.to_numpy(flow=False)
+    return np.asarray(counts, dtype=float)
+
+
+def _th1_edges(obj: Any) -> np.ndarray:
+    """TH1-like bin edges (no under/overflow in the edge array)."""
+    axis = getattr(obj, "axis", None)
+    if callable(axis):
+        ax = axis()
+        edges_fn = getattr(ax, "edges", None)
+        if callable(edges_fn):
+            return np.asarray(edges_fn(flow=False), dtype=float)
+    _, edges = obj.to_numpy(flow=False)
+    return np.asarray(edges, dtype=float)
 
 
 def hist1d_from_uproot(obj: Any, name: str | None = None) -> hist1d:
@@ -52,38 +76,41 @@ def hist1d_from_uproot(obj: Any, name: str | None = None) -> hist1d:
     )
 
 
+def efficiency_from_tefficiency_uproot(obj: Any, name: str | None = None) -> efficiency:
+    """Build an :class:`efficiency` from a uproot ``TEfficiency`` (member histograms)."""
+    passed_histo = obj.member("fPassedHistogram")
+    total_histo = obj.member("fTotalHistogram")
+    passed_values = _th1_bin_contents(passed_histo)
+    total_values = _th1_bin_contents(total_histo)
+    edges = _th1_edges(passed_histo)
+    edges_total = _th1_edges(total_histo)
+    if edges.shape != edges_total.shape or not np.allclose(edges, edges_total):
+        raise ValueError("TEfficiency passed/total histograms must have matching edges.")
+    if passed_values.shape != total_values.shape:
+        raise ValueError("TEfficiency passed/total histograms must have the same number of bins.")
+    return efficiency(edges=edges, passed=passed_values, total=total_values, name=name)
+
+
 def hist1d_from_tefficiency_uproot(obj: Any, name: str | None = None) -> hist1d:
     """Build a ``hist1d`` from a TEfficiency-like uproot object.
 
-    The returned ``hist1d`` stores efficiency values as ``counts`` and binomial
-    uncertainties as ``errors``.
+    Uses ``fPassedHistogram`` / ``fTotalHistogram`` and per-bin ``values()``
+    when available. The returned ``hist1d`` stores efficiency values as
+    ``counts`` and binomial uncertainties as ``errors``.
     """
-    # Prefer passed/total histograms when available.
     try:
-        passed_obj = obj.member("fPassedHistogram")
-        total_obj = obj.member("fTotalHistogram")
-        h_pass = hist1d_from_uproot(passed_obj)
-        h_total = hist1d_from_uproot(total_obj)
-        if h_pass.edges.shape != h_total.edges.shape or not np.allclose(h_pass.edges, h_total.edges):
-            raise ValueError("TEfficiency passed/total histograms must have matching edges.")
-        with np.errstate(divide="ignore", invalid="ignore"):
-            values = np.divide(h_pass.counts, h_total.counts, out=np.zeros_like(h_pass.counts), where=h_total.counts > 0.0)
-            errors = np.sqrt(
-                np.divide(values * (1.0 - values), h_total.counts, out=np.zeros_like(h_total.counts), where=h_total.counts > 0.0)
-            )
-        return hist1d(edges=h_total.edges, counts=values, errors=errors, name=name)
-    except Exception:
-        pass
+        eff = efficiency_from_tefficiency_uproot(obj, name=name)
+    except Exception as first_exc:
+        try:
+            values = np.asarray(obj.values(flow=False), dtype=float)
+            errors = np.asarray(obj.errors(flow=False), dtype=float)
+            axis = obj.axis() if callable(getattr(obj, "axis", None)) else obj.axes[0]
+            edges = np.asarray(axis.edges(flow=False), dtype=float)
+            return hist1d(edges=edges, counts=values, errors=errors, name=name)
+        except Exception:
+            raise ValueError("Could not convert TEfficiency object to hist1d.") from first_exc
 
-    # Fall back to TEfficiency behavior methods if available.
-    try:
-        values = np.asarray(obj.values(flow=False), dtype=float)
-        errors = np.asarray(obj.errors(flow=False), dtype=float)
-        axis = obj.axis() if callable(getattr(obj, "axis", None)) else obj.axes[0]
-        edges = np.asarray(axis.edges(flow=False), dtype=float)
-        return hist1d(edges=edges, counts=values, errors=errors, name=name)
-    except Exception as exc:
-        raise ValueError("Could not convert TEfficiency object to hist1d.") from exc
+    return hist1d(edges=eff.edges, counts=eff.values, errors=eff.errors, name=name)
 
 
 def hist2d_from_uproot(obj: Any, name: str | None = None) -> hist2d:
@@ -138,6 +165,26 @@ def read_hist1d(file_path: str, object_path: str) -> hist1d:
         if getattr(obj, "classname", "") == "TEfficiency":
             return hist1d_from_tefficiency_uproot(obj, name=object_path)
         return hist1d_from_uproot(obj, name=object_path)
+
+
+def read_tefficiency(file_path: str, object_path: str) -> efficiency:
+    """Read a ``TEfficiency`` from a ROOT file into :class:`efficiency` (passed/total per bin)."""
+    uproot = _import_uproot()
+    with uproot.open(file_path) as root_file:
+        try:
+            obj = root_file[object_path]
+        except NotImplementedError as exc:
+            raise NotImplementedError(
+                "uproot could not deserialize this object. "
+                "If this is a TEfficiency with unsupported streamer payload, "
+                "try a different uproot version or export passed/total TH1 objects."
+            ) from exc
+        if getattr(obj, "classname", "") != "TEfficiency":
+            raise ValueError(
+                f"ROOT object '{object_path}' has classname {getattr(obj, 'classname', '')!r}; "
+                "expected 'TEfficiency'."
+            )
+        return efficiency_from_tefficiency_uproot(obj, name=object_path)
 
 
 def read_hist2d(file_path: str, object_path: str) -> hist2d:
