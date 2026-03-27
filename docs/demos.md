@@ -91,13 +91,13 @@ python utilities/overlay_hist.py \
   --ratio full
 ```
 
-Run (`efficiency`):
+Run (`efficiency`, expects TEfficiency objects):
 
 ```bash
 python utilities/overlay_hist.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
   --kind efficiency \
-  --input h_pass:hx h_pass:hx \
+  --input eff_x eff_x \
   --ratio range:0.5:1.5
 ```
 

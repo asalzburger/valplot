@@ -5,6 +5,7 @@ import pytest
 
 from valplot.io.root.histograms import (
     band_from_tree,
+    hist1d_from_tefficiency_uproot,
     restricted_band_from_tree,
     hist1d_from_tree,
     hist1d_from_uproot,
@@ -20,6 +21,7 @@ from valplot.histograms import efficiency, profile, restricted_profile
 
 TESTS_INPUT_ROOT = Path(__file__).parent / "data" / "tests_input.root"
 TESTS_RESTRICTED_ROOT = Path(__file__).parent / "data" / "tests_restricted.root"
+TESTS_EFF_ROOT = Path(__file__).parent / "data" / "tests_efficiency.root"
 
 
 class _FakeTH1:
@@ -55,6 +57,23 @@ class _FakeTH2:
 
     def variances(self, flow=False):
         return self._variances
+
+
+class _FakeTEff:
+    classname = "TEfficiency"
+
+    def __init__(self):
+        self._passed = _FakeTH1()
+        self._total = _FakeTH1()
+        self._total._counts = np.array([4.0, 6.0], dtype=float)
+        self._total._variances = np.array([4.0, 6.0], dtype=float)
+
+    def member(self, key):
+        if key == "fPassedHistogram":
+            return self._passed
+        if key == "fTotalHistogram":
+            return self._total
+        raise KeyError(key)
 
 
 def test_hist1d_from_uproot():
@@ -153,6 +172,13 @@ def test_read_hist1d(monkeypatch):
     monkeypatch.setattr("valplot.io.root.histograms._import_uproot", lambda: _FakeUproot)
     h = read_hist1d("input.root", "h1")
     np.testing.assert_allclose(h.counts, [2.0, 3.0])
+
+
+def test_hist1d_from_tefficiency_uproot():
+    h = hist1d_from_tefficiency_uproot(_FakeTEff(), name="eff")
+    np.testing.assert_allclose(h.edges, [0.0, 1.0, 2.0])
+    np.testing.assert_allclose(h.counts, [0.5, 0.5])
+    assert np.all(h.errors > 0.0)
 
 
 def test_profile_from_tree(monkeypatch):
@@ -427,3 +453,15 @@ def test_restricted_profile_from_tree_real_root_file():
     assert rp.n_bins == 40
     assert rp.metadata["restriction_branch"] == "y"
     assert rp.metadata["restriction_range"] == (-4.0, 4.0)
+
+
+def test_read_hist1d_tefficiency_real_root_file():
+    pytest.importorskip("uproot")
+    assert TESTS_EFF_ROOT.exists()
+    try:
+        h = read_hist1d(str(TESTS_EFF_ROOT), "efficiency")
+    except NotImplementedError:
+        pytest.skip("Current uproot cannot deserialize this TEfficiency streamer payload.")
+    assert h.n_bins > 0
+    assert np.all(h.counts >= 0.0)
+    assert np.all(h.counts <= 1.0 + 1e-12)

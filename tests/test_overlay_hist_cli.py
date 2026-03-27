@@ -28,9 +28,9 @@ def test_parse_ratio_mode(token, expected_enabled, expected_range):
 
 
 def test_parse_eff_input():
-    assert parse_eff_input("h_pass:h_total") == ("h_pass", "h_total")
+    assert parse_eff_input("trk_eff") == "trk_eff"
     with pytest.raises(ValueError):
-        parse_eff_input("h_pass")
+        parse_eff_input("h_pass:h_total")
 
 
 @pytest.mark.parametrize(
