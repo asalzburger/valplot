@@ -140,13 +140,13 @@ python utilities/overlay_hist.py \
   --ratio full
 ```
 
-`efficiency` example (input format: `passed_obj:total_obj`):
+`efficiency` example (input format: `TEfficiency_object`):
 
 ```bash
 python utilities/overlay_hist.py \
   --files tests/data/tests_input.root tests/data/tests_input.root \
   --kind efficiency \
-  --input h_pass:hx h_pass:hx \
+  --input eff_x eff_x \
   --ratio range:0.5:1.5 \
   --x-label '$\\eta$' \
   --y-label 'Efficiency'

@@ -2,6 +2,7 @@
 
 from .histograms import (
     band_from_tree,
+    hist1d_from_tefficiency_uproot,
     restricted_band_from_tree,
     hist1d_from_tree,
     hist1d_from_uproot,
@@ -16,6 +17,7 @@ from .histograms import (
 
 __all__ = [
     "hist1d_from_uproot",
+    "hist1d_from_tefficiency_uproot",
     "hist2d_from_uproot",
     "read_hist1d",
     "read_hist2d",

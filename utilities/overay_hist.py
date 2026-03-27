@@ -75,11 +75,13 @@ def parse_labels(raw: list[str] | None, n_files: int) -> list[str] | None:
     return raw
 
 
-def parse_eff_input(raw: str) -> tuple[str, str]:
-    parts = [p.strip() for p in raw.split(":")]
-    if len(parts) != 2 or not parts[0] or not parts[1]:
-        raise ValueError(f"Invalid efficiency --input entry '{raw}'. Expected 'passed_obj:total_obj'.")
-    return parts[0], parts[1]
+def parse_eff_input(raw: str) -> str:
+    raw = raw.strip()
+    if not raw:
+        raise ValueError("Invalid efficiency --input entry ''. Expected TEfficiency object name.")
+    if ":" in raw:
+        raise ValueError(f"Invalid efficiency --input entry '{raw}'. Expected TEfficiency object name.")
+    return raw
 
 
 def _validate_root_files(files: list[str]) -> None:
@@ -110,7 +112,7 @@ def build_parser(description: str | None = None) -> argparse.ArgumentParser:
         required=True,
         help=(
             "Object name(s). For kind=hist1d: TH1 object path(s). "
-            "For kind=efficiency: 'passed_obj:total_obj'. "
+            "For kind=efficiency: TEfficiency object path(s). "
             "If provided once, applies to all files."
         ),
     )
@@ -205,16 +207,28 @@ def main(argv: list[str] | None = None) -> int:
             ratio_objects.append(h)
         else:
             try:
-                passed_obj, total_obj = parse_eff_input(input_item)
+                teff_obj = parse_eff_input(input_item)
             except ValueError as e:
                 print(f"Error: {e}", file=sys.stderr)
                 return 2
-            h_pass = read_hist1d(file_path, passed_obj)
-            h_total = read_hist1d(file_path, total_obj)
-            if h_pass.edges.shape != h_total.edges.shape or not np.allclose(h_pass.edges, h_total.edges):
-                print("Error: efficiency passed/total histograms must have matching bin edges.", file=sys.stderr)
+            try:
+                h_eff = read_hist1d(file_path, teff_obj)
+            except Exception as e:
+                print(f"Error: failed to read TEfficiency '{teff_obj}' from '{file_path}': {e}", file=sys.stderr)
                 return 2
-            eff = efficiency_obj(edges=h_total.edges, passed=h_pass.counts, total=h_total.counts, name=label)
+            if np.any(h_eff.counts < -1e-12) or np.any(h_eff.counts > 1.0 + 1e-12):
+                print(
+                    f"Error: object '{teff_obj}' does not look like a TEfficiency-derived histogram (values outside [0,1]).",
+                    file=sys.stderr,
+                )
+                return 2
+            eff = efficiency_obj(
+                edges=h_eff.edges,
+                passed=np.clip(h_eff.counts, 0.0, 1.0),
+                total=np.ones_like(h_eff.counts, dtype=float),
+                errors=h_eff.errors,
+                name=label,
+            )
             objects.append(eff)
             # Ratio/band helper path: map efficiency values/errors to a hist1d-like container.
             ratio_objects.append(hist1d(edges=eff.edges, counts=eff.values, errors=eff.errors, name=label))
