@@ -58,6 +58,189 @@ def _th1_arrays_from_root_hist(obj: Any) -> tuple[np.ndarray, np.ndarray]:
     return values, edges
 
 
+def _is_one_level_jagged_array(values: Any) -> bool:
+    arr = np.asarray(values)
+    if arr.dtype != object:
+        return False
+    for item in arr:
+        if item is None:
+            continue
+        if np.isscalar(item):
+            continue
+        item_arr = np.asarray(item, dtype=object)
+        if item_arr.ndim == 0:
+            continue
+        if item_arr.dtype == object and np.any([not np.isscalar(x) for x in item_arr.ravel()]):
+            return False
+    return True
+
+
+def flatten_branch_values(values: Any, *, branch_name: str = "branch") -> np.ndarray:
+    """Flatten scalar or one-level jagged branch values to 1D float array.
+
+    Supports:
+    - scalar branches (float/int per entry)
+    - one-level jagged branches (std::vector<float>)
+
+    Does not support nested jagged arrays (std::vector<std::vector<...>>).
+    """
+    arr = np.asarray(values)
+    if arr.dtype != object:
+        return np.asarray(arr, dtype=float).ravel()
+
+    if not _is_one_level_jagged_array(arr):
+        raise ValueError(
+            f"Branch '{branch_name}' appears to be nested jagged; "
+            "only scalar and one-level jagged branches are supported."
+        )
+
+    flat: list[float] = []
+    for item in arr:
+        if item is None:
+            continue
+        if np.isscalar(item):
+            flat.append(float(item))
+            continue
+        item_arr = np.asarray(item, dtype=float).ravel()
+        flat.extend(item_arr.tolist())
+    return np.asarray(flat, dtype=float)
+
+
+def flatten_branch_pair(
+    x_values: Any,
+    y_values: Any,
+    *,
+    x_name: str = "x",
+    y_name: str = "y",
+) -> tuple[np.ndarray, np.ndarray]:
+    """Flatten a pair of scalar/one-level-jagged branches while preserving pairing."""
+    x_arr = np.asarray(x_values)
+    y_arr = np.asarray(y_values)
+
+    if x_arr.dtype != object and y_arr.dtype != object:
+        x_flat = np.asarray(x_arr, dtype=float).ravel()
+        y_flat = np.asarray(y_arr, dtype=float).ravel()
+        if x_flat.shape != y_flat.shape:
+            raise ValueError(f"Branches '{x_name}' and '{y_name}' must have matching lengths.")
+        return x_flat, y_flat
+
+    if x_arr.shape != y_arr.shape:
+        raise ValueError(f"Branches '{x_name}' and '{y_name}' must have matching entry counts.")
+
+    out_x: list[float] = []
+    out_y: list[float] = []
+
+    for x_item, y_item in zip(x_arr, y_arr):
+        x_is_scalar = x_item is not None and np.isscalar(x_item)
+        y_is_scalar = y_item is not None and np.isscalar(y_item)
+
+        if x_item is None or y_item is None:
+            continue
+
+        if x_is_scalar and y_is_scalar:
+            out_x.append(float(x_item))
+            out_y.append(float(y_item))
+            continue
+
+        x_vec = np.asarray(x_item, dtype=object).ravel()
+        y_vec = np.asarray(y_item, dtype=object).ravel()
+
+        if (x_vec.dtype == object and np.any([not np.isscalar(v) for v in x_vec])) or (
+            y_vec.dtype == object and np.any([not np.isscalar(v) for v in y_vec])
+        ):
+            raise ValueError(
+                f"Branches '{x_name}'/'{y_name}' appear to be nested jagged; "
+                "only scalar and one-level jagged branches are supported."
+            )
+
+        if x_vec.shape[0] != y_vec.shape[0]:
+            raise ValueError(
+                f"Jagged branches '{x_name}' and '{y_name}' must have the same per-entry vector length."
+            )
+
+        out_x.extend(np.asarray(x_vec, dtype=float).tolist())
+        out_y.extend(np.asarray(y_vec, dtype=float).tolist())
+
+    return np.asarray(out_x, dtype=float), np.asarray(out_y, dtype=float)
+
+
+def flatten_weights_for_reference(
+    reference_values: Any,
+    weights_values: Any,
+    *,
+    reference_name: str = "branch",
+    weights_name: str = "weights",
+) -> np.ndarray:
+    """Flatten weights to match flattened reference values length.
+
+    For one-level jagged reference branches, scalar per-entry weights are repeated
+    per element in the corresponding vector.
+    """
+    ref_arr = np.asarray(reference_values)
+    w_arr = np.asarray(weights_values)
+
+    if ref_arr.dtype != object:
+        weights = flatten_branch_values(w_arr, branch_name=weights_name)
+        ref_flat = flatten_branch_values(ref_arr, branch_name=reference_name)
+        if weights.shape[0] != ref_flat.shape[0]:
+            raise ValueError(
+                f"Weight branch '{weights_name}' length must match flattened '{reference_name}'."
+            )
+        return weights
+
+    if ref_arr.shape != w_arr.shape:
+        raise ValueError(
+            f"Weight branch '{weights_name}' must match entry count of '{reference_name}'."
+        )
+
+    if not _is_one_level_jagged_array(ref_arr):
+        raise ValueError(
+            f"Branch '{reference_name}' appears to be nested jagged; "
+            "weights expansion for nested jagged is not supported."
+        )
+
+    out_w: list[float] = []
+    for ref_item, w_item in zip(ref_arr, w_arr):
+        if ref_item is None:
+            continue
+        ref_is_scalar = np.isscalar(ref_item)
+        if ref_is_scalar:
+            if w_item is None:
+                continue
+            if not np.isscalar(w_item):
+                w_vec = np.asarray(w_item, dtype=float).ravel()
+                if w_vec.shape[0] != 1:
+                    raise ValueError(
+                        f"Weight branch '{weights_name}' has incompatible entry shape for scalar '{reference_name}'."
+                    )
+                out_w.append(float(w_vec[0]))
+            else:
+                out_w.append(float(w_item))
+            continue
+
+        ref_vec = np.asarray(ref_item, dtype=float).ravel()
+        n_ref = ref_vec.shape[0]
+        if n_ref == 0:
+            continue
+
+        if w_item is None:
+            raise ValueError(
+                f"Weight branch '{weights_name}' contains missing entry for non-empty '{reference_name}'."
+            )
+        if np.isscalar(w_item):
+            out_w.extend([float(w_item)] * n_ref)
+            continue
+
+        w_vec = np.asarray(w_item, dtype=float).ravel()
+        if w_vec.shape[0] != n_ref:
+            raise ValueError(
+                f"Weight branch '{weights_name}' jagged lengths must match '{reference_name}' lengths per entry."
+            )
+        out_w.extend(w_vec.tolist())
+
+    return np.asarray(out_w, dtype=float)
+
+
 def hist1d_from_uproot(obj: Any, name: str | None = None) -> hist1d:
     """Build a ``hist1d`` from a TH1-like uproot object."""
     counts, edges = obj.to_numpy(flow=False)
@@ -272,8 +455,18 @@ def hist1d_from_tree(
         tree = root_file[tree_path]
         requested = [branch] if weight_branch is None else [branch, weight_branch]
         arrays = tree.arrays(requested, library="np")
-        values = np.asarray(arrays[branch], dtype=float)
-        weights = None if weight_branch is None else np.asarray(arrays[weight_branch], dtype=float)
+        values_raw = arrays[branch]
+        values = flatten_branch_values(values_raw, branch_name=branch)
+        weights = (
+            None
+            if weight_branch is None
+            else flatten_weights_for_reference(
+                values_raw,
+                arrays[weight_branch],
+                reference_name=branch,
+                weights_name=weight_branch,
+            )
+        )
 
     counts, edges = np.histogram(values, bins=bins, range=range, weights=weights)
     counts = np.asarray(counts, dtype=float)
@@ -304,9 +497,19 @@ def hist2d_from_tree(
         tree = root_file[tree_path]
         requested = [x_branch, y_branch] if weight_branch is None else [x_branch, y_branch, weight_branch]
         arrays = tree.arrays(requested, library="np")
-        x_values = np.asarray(arrays[x_branch], dtype=float)
-        y_values = np.asarray(arrays[y_branch], dtype=float)
-        weights = None if weight_branch is None else np.asarray(arrays[weight_branch], dtype=float)
+        x_raw = arrays[x_branch]
+        y_raw = arrays[y_branch]
+        x_values, y_values = flatten_branch_pair(x_raw, y_raw, x_name=x_branch, y_name=y_branch)
+        weights = (
+            None
+            if weight_branch is None
+            else flatten_weights_for_reference(
+                x_raw,
+                arrays[weight_branch],
+                reference_name=x_branch,
+                weights_name=weight_branch,
+            )
+        )
 
     counts, x_edges, y_edges = np.histogram2d(
         x_values,
@@ -349,9 +552,19 @@ def profile_from_tree(
         tree = root_file[tree_path]
         requested = [x_branch, y_branch] if weight_branch is None else [x_branch, y_branch, weight_branch]
         arrays = tree.arrays(requested, library="np")
-        x_values = np.asarray(arrays[x_branch], dtype=float)
-        y_values = np.asarray(arrays[y_branch], dtype=float)
-        weights = None if weight_branch is None else np.asarray(arrays[weight_branch], dtype=float)
+        x_raw = arrays[x_branch]
+        y_raw = arrays[y_branch]
+        x_values, y_values = flatten_branch_pair(x_raw, y_raw, x_name=x_branch, y_name=y_branch)
+        weights = (
+            None
+            if weight_branch is None
+            else flatten_weights_for_reference(
+                x_raw,
+                arrays[weight_branch],
+                reference_name=x_branch,
+                weights_name=weight_branch,
+            )
+        )
 
     if weights is None:
         sumw, edges = np.histogram(x_values, bins=bins, range=range)
@@ -397,8 +610,7 @@ def scatter_from_tree(
     with uproot.open(file_path) as root_file:
         tree = root_file[tree_path]
         arrays = tree.arrays([x_branch, y_branch], library="np")
-        x_values = np.asarray(arrays[x_branch], dtype=float)
-        y_values = np.asarray(arrays[y_branch], dtype=float)
+        x_values, y_values = flatten_branch_pair(arrays[x_branch], arrays[y_branch], x_name=x_branch, y_name=y_branch)
 
     return scatter(x=x_values, y=y_values, name=name or f"{y_branch}_vs_{x_branch}")
 
@@ -417,8 +629,7 @@ def band_from_tree(
     with uproot.open(file_path) as root_file:
         tree = root_file[tree_path]
         arrays = tree.arrays([x_branch, y_branch], library="np")
-        x_values = np.asarray(arrays[x_branch], dtype=float)
-        y_values = np.asarray(arrays[y_branch], dtype=float)
+        x_values, y_values = flatten_branch_pair(arrays[x_branch], arrays[y_branch], x_name=x_branch, y_name=y_branch)
 
     entries, edges = np.histogram(x_values, bins=bins, range=range)
     entries = np.asarray(entries, dtype=float)
