@@ -111,6 +111,35 @@ Demo wrapper:
 python examples/demo_overlay_hist.py
 ```
 
+## `utilities/overlay_dist.py`
+
+Purpose:
+
+- overlay one tree branch as `hist1d` across multiple files/trees
+- supports optional ratio and band decoration modes
+- supports scalar and one-level jagged (`std::vector<float/double>`) branches transparently
+
+Run:
+
+```bash
+python utilities/overlay_dist.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --input tree \
+  --branch x \
+  --ratio full \
+  --band 1sigma
+```
+
+Jagged branch example:
+
+```bash
+python utilities/overlay_dist.py \
+  --files tests/data/tests_trees_jagged.root tests/data/tests_trees_jagged.root \
+  --input jagged_tree \
+  --branch xj \
+  --ratio full
+```
+
 ## `demo_style_showcase.py`
 
 Purpose:

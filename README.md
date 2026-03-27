@@ -24,6 +24,7 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
 - Utility scripts:
   - `utilities/overlay_profiles.py` for instruction-driven multi-file profile overlays
   - `utilities/overlay_hist.py` for instruction-driven multi-file hist1d/efficiency overlays
+  - `utilities/overlay_dist.py` for instruction-driven tree-branch distribution overlays
   - `utilities/read_tefficiency.py` for TEfficiency read + fallback demonstration
 
 ## Installation
@@ -161,6 +162,30 @@ Demo wrapper:
 
 ```bash
 python examples/demo_overlay_hist.py
+```
+
+### Tree branch distribution overlay utility
+
+`utilities/overlay_dist.py` overlays one branch from trees across files and supports optional ratio/band styling like other overlay utilities.
+
+```bash
+python utilities/overlay_dist.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --input tree \
+  --branch x \
+  --bins 50 \
+  --ratio full \
+  --band 1sigma
+```
+
+Jagged one-level vectors are supported transparently:
+
+```bash
+python utilities/overlay_dist.py \
+  --files tests/data/tests_trees_jagged.root tests/data/tests_trees_jagged.root \
+  --input jagged_tree \
+  --branch xj \
+  --ratio full
 ```
 
 ### TEfficiency fallback utility
