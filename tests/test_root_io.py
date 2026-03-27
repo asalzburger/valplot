@@ -513,6 +513,72 @@ def test_read_hist1d_tefficiency_real_root_file():
     assert np.all(h.counts <= 1.0 + 1e-12)
 
 
+def test_jagged_tree_hist1d_hist2d_profile_real_root_file():
+    uproot = pytest.importorskip("uproot")
+    jagged_root = Path(__file__).parent / "data" / "tests_trees_jagged.root"
+    assert jagged_root.exists()
+
+    with uproot.open(jagged_root) as root_file:
+        tree = root_file["jagged_tree"]
+        arrays = tree.arrays(["xj", "yj"], library="np")
+        xj_flat = np.concatenate([np.asarray(v, dtype=float) for v in arrays["xj"]])
+        yj_flat = np.concatenate([np.asarray(v, dtype=float) for v in arrays["yj"]])
+
+    x_range = (float(np.min(xj_flat)), float(np.max(xj_flat)))
+    y_range = (float(np.min(yj_flat)), float(np.max(yj_flat)))
+
+    h_xj = hist1d_from_tree(str(jagged_root), "jagged_tree", "xj", bins=20, range=x_range, name="xj")
+    h_yj = hist1d_from_tree(str(jagged_root), "jagged_tree", "yj", bins=20, range=y_range, name="yj")
+    assert h_xj.n_bins == 20
+    assert h_yj.n_bins == 20
+    assert np.isclose(np.sum(h_xj.counts), float(xj_flat.shape[0]))
+    assert np.isclose(np.sum(h_yj.counts), float(yj_flat.shape[0]))
+
+    h2_xy = hist2d_from_tree(
+        str(jagged_root),
+        "jagged_tree",
+        "xj",
+        "yj",
+        bins=(20, 20),
+        range=(x_range, y_range),
+        name="xj_vs_yj",
+    )
+    h2_yx = hist2d_from_tree(
+        str(jagged_root),
+        "jagged_tree",
+        "yj",
+        "xj",
+        bins=(20, 20),
+        range=(y_range, x_range),
+        name="yj_vs_xj",
+    )
+    assert np.isclose(np.sum(h2_xy.counts), float(xj_flat.shape[0]))
+    assert np.isclose(np.sum(h2_yx.counts), float(yj_flat.shape[0]))
+
+    p_xy = profile_from_tree(
+        str(jagged_root),
+        "jagged_tree",
+        x_branch="xj",
+        y_branch="yj",
+        bins=20,
+        range=x_range,
+        name="p_xy",
+    )
+    p_yx = profile_from_tree(
+        str(jagged_root),
+        "jagged_tree",
+        x_branch="yj",
+        y_branch="xj",
+        bins=20,
+        range=y_range,
+        name="p_yx",
+    )
+    assert p_xy.n_bins == 20
+    assert p_yx.n_bins == 20
+    assert np.isclose(np.sum(p_xy.entries), float(xj_flat.shape[0]))
+    assert np.isclose(np.sum(p_yx.entries), float(yj_flat.shape[0]))
+
+
 def test_tefficiency_root_fallback_real_root_file():
     pytest.importorskip("ROOT")
     assert TESTS_EFF_ROOT.exists()

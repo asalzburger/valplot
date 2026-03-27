@@ -20,6 +20,7 @@ Small plotting and validation helpers for histogram-like data, with optional ROO
 - ROOT helpers in `valplot.io.root`:
   - read TH1/TH2 objects
   - fill 1D/2D histograms, profiles, restricted profiles, scatters, and bands from TTree branches
+  - supports one-level jagged tree branches (`std::vector<float>`) via automatic flattening
 - Utility scripts:
   - `utilities/overlay_profiles.py` for instruction-driven multi-file profile overlays
   - `utilities/overlay_hist.py` for instruction-driven multi-file hist1d/efficiency overlays

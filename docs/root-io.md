@@ -82,6 +82,8 @@ band_xy = band_from_tree(
 )
 ```
 
+Jagged one-level vectors (`std::vector<float>`) are supported for tree filling helpers. Branches are flattened entry-by-entry, so `xj`/`yj` can be used the same way as scalar `x`/`y` branches in `hist1d_from_tree`, `hist2d_from_tree`, and `profile_from_tree`. Nested jagged vectors (`std::vector<std::vector<...>>`) are not supported yet.
+
 ## Weighted filling
 
 The tree helpers support an optional `weight_branch`.

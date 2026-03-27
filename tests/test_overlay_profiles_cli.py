@@ -93,3 +93,39 @@ def test_parse_x_range():
     assert parse_x_range([-5.0, 5.0]) == (-5.0, 5.0)
     assert parse_x_range([5.0, -5.0]) == (-5.0, 5.0)
 
+
+def test_overlay_profiles_handles_jagged_plot(tmp_path: Path):
+    pytest.importorskip("uproot")
+    pytest.importorskip("matplotlib")
+
+    jagged_root = Path(__file__).resolve().parents[1] / "tests" / "data" / "tests_trees_jagged.root"
+    assert jagged_root.exists()
+
+    script = Path(__file__).resolve().parents[1] / "utilities" / "overlay_profiles.py"
+    out_dir = tmp_path / "out"
+
+    proc = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "--files",
+            str(jagged_root),
+            str(jagged_root),
+            "--input",
+            "jagged_tree",
+            "--plot",
+            "xj:yj",
+            "--output-dir",
+            str(out_dir),
+        ],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+
+    assert proc.returncode == 0, proc.stderr + proc.stdout
+    pngs = list(out_dir.glob("*.png"))
+    svgs = list(out_dir.glob("*.svg"))
+    assert pngs
+    assert svgs
+

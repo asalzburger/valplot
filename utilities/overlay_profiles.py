@@ -153,7 +153,7 @@ def _global_branch_range(
 ) -> tuple[float, float]:
     """Compute global (min, max) for branch across inputs."""
     # We import uproot lazily (only used when we actually run ROOT IO).
-    from valplot.io.root.histograms import _import_uproot
+    from valplot.io.root.histograms import _import_uproot, flatten_branch_values
 
     uproot = _import_uproot()
     chunks: list[np.ndarray] = []
@@ -161,7 +161,7 @@ def _global_branch_range(
         with uproot.open(file_path) as root_file:
             tree = root_file[tree_path]
             arrays = tree.arrays([branch], library="np")
-            values = np.asarray(arrays[branch], dtype=float)
+            values = flatten_branch_values(arrays[branch], branch_name=branch)
             chunks.append(values)
 
     if not chunks:
