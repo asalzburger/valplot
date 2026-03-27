@@ -158,3 +158,19 @@ Ratio y-axis modes:
 - omit `--ratio` => no ratio panel
 - `--ratio` or `--ratio full` => ratio panel with full y-range
 - `--ratio range:min_val:max_val` => restrict ratio panel y-axis
+
+## Overlay utility for histogram objects
+
+For multi-file overlays of ROOT histogram objects (`hist1d` and `efficiency`), use `utilities/overlay_hist.py`.
+
+Example (`hist1d`):
+
+```bash
+python utilities/overlay_hist.py \
+  --files tests/data/tests_input.root tests/data/tests_input.root \
+  --kind hist1d \
+  --input hx hy \
+  --band 1sigma \
+  --ratio full \
+  --output-dir examples/output
+```

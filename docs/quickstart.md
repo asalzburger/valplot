@@ -89,6 +89,8 @@ fig_band, _ = plot_band(
 - Complete script: [`../examples/demo_root_plot.py`](../examples/demo_root_plot.py)
 - Multi-file CLI demo: [`../examples/demo_overlay_profiles.py`](../examples/demo_overlay_profiles.py)
 - Reusable utility: [`../utilities/overlay_profiles.py`](../utilities/overlay_profiles.py)
+- Histogram overlay demo: [`../examples/demo_overlay_hist.py`](../examples/demo_overlay_hist.py)
+- Histogram overlay utility: [`../utilities/overlay_hist.py`](../utilities/overlay_hist.py)
 - Style showcase script: [`../examples/demo_style_showcase.py`](../examples/demo_style_showcase.py)
 - Restricted profile demo: [`../examples/demo_restricted_profile.py`](../examples/demo_restricted_profile.py)
 - Practical recipes: [`howto.md`](howto.md)
