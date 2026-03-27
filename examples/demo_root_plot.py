@@ -21,7 +21,7 @@ try:
 except ImportError:  # Local package name in this repository.
     import valplot as plotval
 
-from valplot.io.root.histograms import hist1d_from_uproot, hist2d_from_uproot
+from valplot.io.root.histograms import efficiency_from_tefficiency_uproot, hist1d_from_uproot, hist2d_from_uproot
 
 
 def _profile_from_uproot(obj, name: str) -> plotval.profile:
@@ -47,7 +47,10 @@ def main() -> None:
         prof_x = _profile_from_uproot(root_file["profX"], name="profX")
         prof_y = _profile_from_uproot(root_file["profY"], name="profY")
 
-    eff_x = plotval.efficiency(edges=hx.edges, passed=h_pass.counts, total=hx.counts, name="eff_x")
+        try:
+            eff_x = efficiency_from_tefficiency_uproot(root_file["eff_x"], name="eff_x")
+        except Exception:
+            eff_x = plotval.efficiency(edges=hx.edges, passed=h_pass.counts, total=hx.counts, name="eff_x")
 
     fig, _ = plotval.plot(
         hx,
