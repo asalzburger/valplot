@@ -9,6 +9,7 @@ from valplot.io.root.histograms import (
     efficiency_from_tefficiency_uproot,
     hist1d_from_tefficiency_root,
     hist1d_from_tefficiency_uproot,
+    hist1d_from_tprofile_uproot,
     restricted_band_from_tree,
     hist1d_from_tree,
     hist1d_from_uproot,
@@ -94,6 +95,27 @@ class _FakeTEff:
         if key == "fTotalHistogram":
             return self._total
         raise KeyError(key)
+
+
+class _FakeTProfile:
+    classname = "TProfile"
+
+    def __init__(self):
+        self._edges = np.array([0.0, 1.0, 2.0], dtype=float)
+        self._means = np.array([0.25, 0.75], dtype=float)
+        self._errors = np.array([0.05, 0.10], dtype=float)
+
+    def axis(self):
+        return _FakeTH1Axis(self._edges)
+
+    def values(self, flow=False):
+        return self._means
+
+    def errors(self, flow=False):
+        return self._errors
+
+    def to_numpy(self, flow=False):
+        return self._means, self._edges
 
 
 def test_hist1d_from_uproot():
@@ -210,6 +232,13 @@ def test_efficiency_from_tefficiency_uproot():
     assert np.all(eff.errors > 0.0)
 
 
+def test_hist1d_from_tprofile_uproot():
+    h = hist1d_from_tprofile_uproot(_FakeTProfile(), name="tp")
+    np.testing.assert_allclose(h.edges, [0.0, 1.0, 2.0])
+    np.testing.assert_allclose(h.counts, [0.25, 0.75])
+    np.testing.assert_allclose(h.errors, [0.05, 0.10])
+
+
 def test_read_tefficiency(monkeypatch):
     fake_file = _FakeRootFile({"e1": _FakeTEff()})
 
@@ -222,6 +251,20 @@ def test_read_tefficiency(monkeypatch):
     eff = read_tefficiency("input.root", "e1")
     np.testing.assert_allclose(eff.passed, [2.0, 3.0])
     np.testing.assert_allclose(eff.total, [4.0, 6.0])
+
+
+def test_read_hist1d_tprofile(monkeypatch):
+    fake_file = _FakeRootFile({"tp1": _FakeTProfile()})
+
+    class _FakeUproot:
+        @staticmethod
+        def open(_):
+            return fake_file
+
+    monkeypatch.setattr("valplot.io.root.histograms._import_uproot", lambda: _FakeUproot)
+    h = read_hist1d("input.root", "tp1")
+    np.testing.assert_allclose(h.counts, [0.25, 0.75])
+    np.testing.assert_allclose(h.errors, [0.05, 0.10])
 
 
 def test_profile_from_tree(monkeypatch):

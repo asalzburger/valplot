@@ -16,6 +16,8 @@
 - `efficiency_from_tefficiency_root(file_path, object_path, name=None)` (PyROOT fallback path)
 - `hist1d_from_tefficiency_root(file_path, object_path, name=None)` (PyROOT fallback path)
 
+`read_hist1d(...)` also supports `TProfile` objects by converting profile means/errors into a `hist1d` representation.
+
 ## Reading ROOT histogram objects
 
 ```python
