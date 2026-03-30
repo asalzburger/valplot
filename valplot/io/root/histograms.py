@@ -313,6 +313,31 @@ def hist1d_from_tefficiency_uproot(obj: Any, name: str | None = None) -> hist1d:
     return hist1d(edges=eff.edges, counts=eff.values, errors=eff.errors, name=name)
 
 
+def hist1d_from_tprofile_uproot(obj: Any, name: str | None = None) -> hist1d:
+    """Build a ``hist1d`` from a ROOT ``TProfile`` read via uproot.
+
+    Uses profile bin means as ``counts`` and profile errors as ``errors``.
+    """
+    edges = _th1_edges(obj)
+    values = _th1_bin_contents(obj)
+    errors = None
+    errors_fn = getattr(obj, "errors", None)
+    if callable(errors_fn):
+        try:
+            errors = np.asarray(errors_fn(flow=False), dtype=float)
+        except TypeError:
+            errors = np.asarray(errors_fn(), dtype=float)
+    if errors is None:
+        # Fallback: try sqrt(variances) if present.
+        try:
+            variances = obj.variances(flow=False)
+            if variances is not None:
+                errors = np.sqrt(np.clip(np.asarray(variances, dtype=float), a_min=0.0, a_max=None))
+        except Exception:
+            errors = np.zeros_like(values, dtype=float)
+    return hist1d(edges=edges, counts=values, errors=errors, name=name)
+
+
 def efficiency_from_tefficiency_root(
     file_path: str, object_path: str, name: str | None = None
 ) -> efficiency:
@@ -405,6 +430,8 @@ def read_hist1d(file_path: str, object_path: str) -> hist1d:
                 return hist1d_from_tefficiency_uproot(obj, name=object_path)
             except Exception:
                 return hist1d_from_tefficiency_root(file_path, object_path, name=object_path)
+        if str(getattr(obj, "classname", "")).startswith("TProfile"):
+            return hist1d_from_tprofile_uproot(obj, name=object_path)
         return hist1d_from_uproot(obj, name=object_path)
 
 
